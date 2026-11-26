@@ -1,6 +1,6 @@
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 1.1.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 1.2.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > **Agent: load sections 0–11 into context. Do NOT read Appendix A** (the viewer, ~490 lines).
 > Copy it into the project with the command in §3. To read only the protocol:
@@ -18,7 +18,7 @@ Skill version: 1.1.0 · License: PolyForm Noncommercial 1.0.0 · https://github.
 
 Linear chat hides structure: one problem turns into three, decisions get buried, and the user loses track of which path is current. Wallpainter moves that structure into a local HTML board:
 
-- **Overview tab**: a git-style graph of all topics (branches, merges, dependencies, current path) and, beside it, your ranked list of what to do or decide next.
+- **Overview tab**: a **structure** tree (root problem → sub-topics, open decisions as ◆ leaves, "waits for" arcs, current path in bold, unblocked leaf topics marked *ready*) with a git-style **history** graph as the alternative view. Beside it: your ranked list of what to do or decide next.
 - **One tab per topic**: a top-to-bottom timeline of steps (notes, diagrams, before/after comparisons, diffs, results) and decision cards.
 
 The viewer is static and renders whatever is in `state.js`. You write data, never markup.
@@ -155,6 +155,7 @@ W({t:"ask", id:"D2", in:"T2", q:"How do we migrate existing hashes?", md:"option
   3. risk;
   4. effort.
 - The viewer greys out items that are answered or closed. Remove them at the next update.
+- The viewer marks a topic *ready* when it is open, not blocked, waits for no open topic and has no open sub-topics (Mikado principle: work the leaves first). Use `dep` and `status` precisely so this stays correct.
 
 ## 9. Chat reply format
 
@@ -212,7 +213,7 @@ Copy by command (§3). Do not read or modify.
 ```html
 <!-- wallpainter:viewer:begin -->
 <!doctype html>
-<html lang="en" data-wp-version="1.1.0">
+<html lang="en" data-wp-version="1.2.0">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -257,7 +258,25 @@ th{background:var(--soft)}
 .s{font-size:.75rem;font-weight:500;padding:.05rem .5rem;border-radius:9px;border:1px solid var(--c);color:var(--c);margin-left:.5rem;vertical-align:middle}
 .ov{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
 @media (max-width:760px){.ov{grid-template-columns:minmax(0,1fr)}.next{order:-1}}
-.tg{float:right;font-size:.8rem;font-weight:400;color:var(--mut)}
+.tg{float:right;font-size:.8rem;font-weight:400;color:var(--mut);margin-top:.3rem}
+.seg{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:2px;margin-bottom:.7rem}
+.seg button{font:inherit;font-size:.82rem;border:0;background:none;color:var(--mut);padding:.2rem .85rem;border-radius:7px;cursor:pointer}
+.seg button.on{background:var(--card);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.2)}
+#tree{position:relative}
+#tree svg{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+.node{display:flex;align-items:center;gap:.4rem;overflow:hidden;white-space:nowrap;font-size:.88rem;cursor:pointer;border-radius:6px}
+.node:hover{background:var(--soft)}
+.node .t{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.node.onpath .t{font-weight:600}
+.node.focus{background:var(--soft)}
+.node.closed .t{color:var(--mut)}
+.node.dropped .t{text-decoration:line-through}
+.node.fresh{background:var(--fresh)}
+.node .codes{flex:none;color:var(--mut);font:.75rem var(--mono)}
+.chip{flex:none;font-size:.7rem;padding:0 .45rem;border-radius:8px;border:1px solid var(--c);color:var(--c)}
+.chip.ready{background:var(--ok);border-color:var(--ok);color:#fff}
+.legend{margin-top:.7rem;font-size:.78rem;color:var(--mut)}
+@media (max-width:600px){.node .codes{display:none}}
 #graph{position:relative;overflow-x:auto}
 #graph svg{position:absolute;left:0;top:0;overflow:visible}
 .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.85rem;cursor:pointer;border-radius:6px}
@@ -318,8 +337,8 @@ const ROW = 28, LANE_GAP = 18, LANE_PAD = 12;
 const CLOSED = new Set(["done", "dropped"]);
 const STATUS_COLOR = { open: "var(--mut)", active: "var(--acc)", blocked: "var(--bad)", done: "var(--ok)", dropped: "var(--mut)" };
 const TEXT = {
-  en: { overview: "Overview", path: "Path", next: "Up next", openAsks: "Open decisions", none: "Nothing open.", rec: "recommended", own: "your own solution", chosen: "Chosen", waits: "Waits for", blocks: "Blocks", branched: "New topic", allSteps: "all steps", missing: "state.js not found next to index.html", broken: "state.js has an error - showing the last valid state", empty: "No events yet. The agent appends them to state.js.", status: { open: "open", active: "active", blocked: "blocked", done: "done", dropped: "dropped" }, themeTitle: "Appearance", theme: { auto: "Auto", light: "Light", dark: "Dark" } },
-  de: { overview: "Übersicht", path: "Pfad", next: "Als Nächstes", openAsks: "Offene Entscheidungen", none: "Nichts offen.", rec: "empfohlen", own: "eigene Lösung", chosen: "Gewählt", waits: "Wartet auf", blocks: "Blockiert", branched: "Neues Thema", allSteps: "alle Schritte", missing: "state.js fehlt neben index.html", broken: "state.js enthält einen Fehler - letzter gültiger Stand wird angezeigt", empty: "Noch keine Einträge. Der Agent schreibt sie nach state.js.", status: { open: "offen", active: "aktiv", blocked: "blockiert", done: "erledigt", dropped: "verworfen" }, themeTitle: "Darstellung", theme: { auto: "Auto", light: "Hell", dark: "Dunkel" } },
+  en: { overview: "Overview", path: "Path", next: "Up next", openAsks: "Open decisions", none: "Nothing open.", rec: "recommended", own: "your own solution", chosen: "Chosen", waits: "Waits for", blocks: "Blocks", branched: "New topic", allSteps: "all steps", missing: "state.js not found next to index.html", broken: "state.js has an error - showing the last valid state", empty: "No events yet. The agent appends them to state.js.", status: { open: "open", active: "active", blocked: "blocked", done: "done", dropped: "dropped" }, themeTitle: "Appearance", theme: { auto: "Auto", light: "Light", dark: "Dark" }, structure: "Structure", history: "History", ready: "ready", decide: "decide", legend: "<b>bold</b> = current path · <b>ready</b> = can be worked on now · ◆ open decision · red dashed = waits for" },
+  de: { overview: "Übersicht", path: "Pfad", next: "Als Nächstes", openAsks: "Offene Entscheidungen", none: "Nichts offen.", rec: "empfohlen", own: "eigene Lösung", chosen: "Gewählt", waits: "Wartet auf", blocks: "Blockiert", branched: "Neues Thema", allSteps: "alle Schritte", missing: "state.js fehlt neben index.html", broken: "state.js enthält einen Fehler - letzter gültiger Stand wird angezeigt", empty: "Noch keine Einträge. Der Agent schreibt sie nach state.js.", status: { open: "offen", active: "aktiv", blocked: "blockiert", done: "erledigt", dropped: "verworfen" }, themeTitle: "Darstellung", theme: { auto: "Auto", light: "Hell", dark: "Dunkel" }, structure: "Struktur", history: "Verlauf", ready: "bereit", decide: "entscheiden", legend: "<b>fett</b> = aktueller Pfad · <b>bereit</b> = jetzt bearbeitbar · ◆ offene Entscheidung · rot gestrichelt = wartet auf" },
 };
 
 const byId = (id) => document.getElementById(id);
@@ -334,6 +353,7 @@ const systemDark = matchMedia("(prefers-color-scheme: dark)");
 
 let model = fold([]);
 let showAll = recall("wp-all") === "1";
+let view = recall("wp-view") === "history" ? "history" : "structure";
 let theme = THEMES.includes(recall("wp-theme")) ? recall("wp-theme") : "auto";
 let seen = 0;
 let lastKey = "";
@@ -533,8 +553,12 @@ function renderOverview() {
   if (!model.count) return `<p class="empty">${esc(tx().empty)}</p>`;
   const openAsks = [...model.asks.values()].filter((a) => !a.answer);
   const asks = openAsks.length ? `<ul>${openAsks.map((a) => `<li><a data-go="${esc(a.id)}"><span class="tag">${esc(a.id)}</span>${inline(a.q)}</a><span class="why">${[...asList(a.opts).map((o) => esc(o.c)), a.own ? `${esc(a.own)} -` : ""].filter(Boolean).join(" · ")}</span></li>`).join("")}</ul>` : `<p class="why">${esc(tx().none)}</p>`;
+  const segments = ["structure", "history"].map((v) => `<button type="button" data-view="${v}"${v === view ? ' class="on"' : ""}>${esc(tx()[v])}</button>`).join("");
+  const body = view === "history"
+    ? `<label class="tg"><input type="checkbox" id="all"${showAll ? " checked" : ""}> ${esc(tx().allSteps)}</label><div class="seg">${segments}</div><div id="graph">${renderGraph()}</div>`
+    : `<div class="seg">${segments}</div>${renderTree()}<div class="legend">${tx().legend}</div>`;
   return `<div class="ov">
-    <section class="card"><h2>${esc(tx().path)}<label class="tg"><input type="checkbox" id="all"${showAll ? " checked" : ""}> ${esc(tx().allSteps)}</label></h2><div id="graph">${renderGraph()}</div></section>
+    <section class="card">${body}</section>
     <aside class="card next"><h2>${esc(tx().next)}</h2>${renderNext()}<h2 style="margin-top:1rem">${esc(tx().openAsks)}</h2>${asks}</aside>
   </div>`;
 }
@@ -548,6 +572,86 @@ function renderNext() {
   }).join("")}</ol>`;
 }
 
+const ARROW_DEFS = `<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L8 4L0 8z" fill="var(--bad)"/></marker></defs>`;
+
+/* Structure view: problem tree (parent -> sub-topics) with open decisions as leaves,
+   dependency arcs in a left gutter, and "ready" marking for unblocked leaf topics. */
+function treeNodes() {
+  const nodes = [];
+  const visited = new Set();
+  const visit = (t, depth, parent) => {
+    if (visited.has(t.id)) return;
+    visited.add(t.id);
+    const index = nodes.push({ ref: t.id, topic: t, depth, parent }) - 1;
+    t.log.filter((e) => e.t === "ask" && !e.answer).forEach((a) => nodes.push({ ref: a.id, ask: a, depth: depth + 1, parent: index }));
+    t.kids.forEach((id) => visit(model.topics.get(id), depth + 1, index));
+  };
+  const topics = [...model.topics.values()];
+  topics.filter((t) => !model.topics.has(t.from)).forEach((t) => visit(t, 0, -1));
+  topics.forEach((t) => visit(t, 0, -1));
+  return nodes;
+}
+
+function renderTree() {
+  const NODE_ROW = 32, INDENT = 20;
+  const isOpen = (id) => !CLOSED.has(model.topics.get(id)?.s);
+  const openDeps = model.deps.filter((d) => isOpen(d.in) && isOpen(d.on));
+  const waitsOn = (t) => openDeps.filter((d) => d.in === t.id).map((d) => d.on);
+  const isReady = (t) => isOpen(t.id) && t.s !== "blocked" && !waitsOn(t).length && !t.kids.some(isOpen);
+  const onPath = new Set(pathOf(model.focus));
+  const nodes = treeNodes();
+  const row = new Map(nodes.map((n, i) => [n.ref, i]));
+  const gutter = openDeps.length ? 6 + openDeps.length * 8 : 0;
+  const nx = (depth) => gutter + 10 + depth * INDENT;
+  const cy = (i) => i * NODE_ROW + NODE_ROW / 2;
+  const parts = [];
+
+  nodes.forEach((n, i) => {
+    const x = nx(n.depth), y = cy(i);
+    if (n.parent >= 0) {
+      const highlight = n.topic && onPath.has(n.ref);
+      parts.push(`<path d="M${nx(n.depth - 1)} ${cy(n.parent) + 6} V${y} H${x - 6}" fill="none" stroke="${highlight ? "var(--acc)" : "var(--line)"}" stroke-width="${highlight ? 2.5 : 1.5}"/>`);
+    }
+    if (n.ask) {
+      parts.push(`<path d="M${x} ${y - 6}L${x + 6} ${y}L${x} ${y + 6}L${x - 6} ${y}Z" fill="var(--warn)"/>`);
+    } else {
+      const color = STATUS_COLOR[n.topic.s] || "var(--mut)";
+      parts.push(`<circle cx="${x}" cy="${y}" r="5" fill="${n.topic.s === "open" ? "var(--card)" : color}" stroke="${onPath.has(n.ref) ? "var(--acc)" : color}" stroke-width="2"/>`);
+    }
+  });
+
+  openDeps.forEach((d, k) => {
+    const from = row.get(d.in), to = row.get(d.on);
+    if (from === undefined || to === undefined) return;
+    const gx = 4 + k * 8;
+    parts.push(`<path class="dep" d="M${nx(nodes[from].depth) - 8} ${cy(from)} H${gx} V${cy(to)} H${nx(nodes[to].depth) - 9}" fill="none" stroke="var(--bad)" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#arrow)"/>`);
+  });
+
+  const words = tx();
+  const html = nodes.map((n, i) => {
+    const style = `height:${NODE_ROW}px;padding-left:${nx(n.depth) + 12}px`;
+    if (n.ask) {
+      const codes = [...asList(n.ask.opts).map((o) => o.c), n.ask.own ? `${n.ask.own} -` : ""].filter(Boolean).map(esc).join(" · ");
+      return `<div class="node${isFresh(n.ask) ? " fresh" : ""}" data-ref="${esc(n.ref)}" data-go="${esc(n.ref)}" data-depth="${n.depth}" style="${style}"><span class="tag">${esc(n.ref)}</span><span class="t">${esc(n.ask.q)}</span><span class="codes">${codes}</span><span class="chip" style="--c:var(--warn)">${esc(words.decide)}</span></div>`;
+    }
+    const t = n.topic;
+    const waits = waitsOn(t);
+    const classes = [
+      onPath.has(t.id) && "onpath", t.id === model.focus && "focus", isReady(t) && "ready",
+      CLOSED.has(t.s) && "closed", t.s === "dropped" && "dropped", isFresh(t) && "fresh",
+    ].filter(Boolean).join(" ");
+    const chip = (text, color, cls = "") => `<span class="chip ${cls}" style="--c:${color}">${esc(text)}</span>`;
+    const chips = isReady(t) ? chip(words.ready, "var(--ok)", "ready")
+      : waits.length ? chip(`${words.waits} ${waits.join(", ")}`, "var(--bad)", "wait")
+      : t.s !== "open" ? chip(words.status[t.s] || t.s, STATUS_COLOR[t.s] || "var(--mut)") : "";
+    return `<div class="node ${classes}" data-ref="${esc(t.id)}" data-go="${esc(t.id)}" data-depth="${n.depth}" style="${style}"><span class="tag">${esc(t.id)}</span><span class="t">${esc(t.title)}</span>${chips}</div>`;
+  }).join("");
+
+  const width = nx(Math.max(0, ...nodes.map((n) => n.depth))) + 10;
+  return `<div id="tree"><svg width="${width}" height="${nodes.length * NODE_ROW}" aria-hidden="true">${ARROW_DEFS}${parts.join("")}</svg>${html}</div>`;
+}
+
+/* History view: git-style lanes in chronological order. */
 function layoutLanes(rows) {
   const span = new Map();
   rows.forEach((r, y) => { const s = span.get(r.topic); if (s) s.end = y; else span.set(r.topic, { start: y, end: y }); });
@@ -596,8 +700,7 @@ function renderGraph() {
     parts.push(`<circle cx="${cx}" cy="${c}" r="${r.minor ? 3 : 5}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`);
   });
 
-  const marker = `<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L8 4L0 8z" fill="var(--bad)"/></marker></defs>`;
-  const svg = `<svg width="${width}" height="${(rows.length + 1) * ROW}" aria-hidden="true">${marker}${parts.join("")}</svg>`;
+  const svg = `<svg width="${width}" height="${(rows.length + 1) * ROW}" aria-hidden="true">${ARROW_DEFS}${parts.join("")}</svg>`;
   const labels = rows.map((r) => `<div class="row${isFresh(r.e) ? " fresh" : ""}" data-go="${esc(rowTarget(r))}" style="height:${ROW}px;line-height:${ROW}px;padding-left:${width + 6}px"><span class="tag">${esc(r.topic)}</span>${rowLabel(r.e)}</div>`);
   return svg + labels.join("") + `<div style="height:${ROW}px"></div>`;
 }
@@ -706,11 +809,19 @@ function copyCode(button) {
   navigator.clipboard?.writeText(button.dataset.copy).then(done, () => {});
 }
 
+function switchView(next) {
+  view = next;
+  store("wp-view", view);
+  rerender();
+}
+
 document.addEventListener("click", (ev) => {
-  const target = ev.target.closest("[data-go],[data-copy]");
+  const target = ev.target.closest("[data-go],[data-copy],[data-view]");
   if (!target) return;
   ev.preventDefault();
-  if (target.dataset.go) goTo(target.dataset.go); else copyCode(target);
+  if (target.dataset.go) goTo(target.dataset.go);
+  else if (target.dataset.view) switchView(target.dataset.view);
+  else copyCode(target);
 });
 document.addEventListener("change", (ev) => {
   if (ev.target.id !== "all") return;
