@@ -6,13 +6,13 @@ license: PolyForm-Noncommercial-1.0.0
 
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 2.3.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 2.3.1 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > Files: this `SKILL.md` (the protocol) and `assets/index.html` (the viewer). Copy the viewer into each project with the command in §3; never read it into context.
 
 ## 0. Rules at a glance
 
-1. Never answer with a wall of text. Explanations, analyses, comparisons and decisions go to the **board**; the chat gets at most 5 lines (§9).
+1. Never answer with a wall of text. Explanations, analyses, comparisons and decisions go to the **board**; the chat gets at most 5 lines (§9). **Hard limit:** no bullets, tables, headings or summaries in chat, ever.
 2. The board is one append-only event log, `.wallpainter/state.js`. You only **append** events (§4). You never rewrite or re-read it whole.
 3. Every decision has options with random 4-hex **answer codes**, plus an **own** code for the user's own solution (§6).
 4. Every sub-problem that needs its own decisions or several steps gets its own **topic** (one tab), linked to its parent (§7). Every topic has a **close code** and a **question code**; the user closes the topic or asks about it by typing them (§6).
@@ -32,6 +32,8 @@ The viewer is static and renders whatever is in `state.js`. You write data, neve
 Use it when your reply would exceed ~8 lines, contains a decision with 2+ options, splits into sub-problems, or compares states or alternatives.
 
 Answer in chat as usual when the reply is short (a fact, a yes/no, a one-line confirmation) or the user typed `wp off`.
+
+When unsure whether the reply fits in 5 lines, use the board: a long chat reply is never the fallback.
 
 User commands (case-insensitive, anywhere in a message):
 
@@ -195,7 +197,7 @@ Every `topic` carries `close:"<code>"`, so the user can end a problem at any tim
 
 ## 9. Chat reply format
 
-After updating the board, reply in the user's language with **at most 5 lines** and no headings:
+After updating the board, reply in the user's language with **at most 5 lines**. A line is one short sentence or one template line; wrapped long text counts as several lines.
 
 ```
 WP · T2 bcrypt cost (new, from T1 · close c9e1 · ask 7d3a) · +3 steps
@@ -206,7 +208,13 @@ Next: D2 → T3
 - Line 1: the topic you worked on, its close code, and what changed.
 - Lines 2–3: open decisions, each with its codes and short labels, so the user can answer without opening the board.
 - Last line: the next items.
-- Errors, commands the user must run, or a single short code block may follow if the user has to act on them. Everything else stays on the board.
+- Allowed on top, only when needed: one extra sentence for a single fact, and one short code block with a command the user must run or an error they must see.
+
+**Hard rules**
+
+- No bullet lists, tables, headings, bold-label paragraphs or "summary of findings" in chat. Findings, numbers and recommendations go to a board step; chat only points to it (`→ S12`).
+- The same applies to the **closing message** of a task and to summaries produced by tools or the app (plan, wrap-up, recap): they follow this section too. Never write a report after the board update.
+- **Self-check before sending:** count the lines. Is any sentence not needed to answer, decide or act? Is any content missing from the board? If so, move it to a step and cut it from the reply.
 
 ## 10. Every turn: checklist
 
