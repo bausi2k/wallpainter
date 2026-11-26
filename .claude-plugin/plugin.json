@@ -1,6 +1,6 @@
 {
   "name": "wallpainter",
-  "version": "2.8.0",
+  "version": "2.8.1",
   "description": "Visual, token-lean communication protocol: long answers, decisions and sub-problems go onto a local HTML board instead of the chat.",
   "author": { "name": "bausi2k", "url": "https://github.com/bausi2k" },
   "homepage": "https://github.com/bausi2k/wallpainter",
