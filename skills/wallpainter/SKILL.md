@@ -6,7 +6,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 2.7.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 2.8.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > Files: this `SKILL.md` (the protocol), `scripts/wp.sh` (helper) and `assets/index.html` (the viewer). Copy both into each project with the command in §3; never read them into context.
 > Chat is linear, problems are a graph: the board is a local HTML page with a topic tree, one tab per topic and your ranked next steps. You write data events, never markup.
@@ -36,6 +36,7 @@ User commands (case-insensitive, anywhere in a message):
 | `wp open` | Open the board in the system browser (§3, step 4). |
 | `wp new <title>` | Archive the board (rename `state.js` to `state-<YYYYMMDD-HHMM>.js`), then start a fresh one. |
 | `focus T3` | Make T3 the current topic. |
+| `wp version` | Run `.wallpainter/wp.sh version <skill-dir>` and report installed vs. newest version in one line. If an update exists, show the printed update command; never run the update yourself, the user runs it and then types `/wallpainter`. |
 
 ## 3. Setup (once per project)
 

@@ -2,6 +2,8 @@
 # Wallpainter helper. Usage:
 #   wp.sh code   [state.js]   print a fresh 4-hex code that is not on the board yet
 #   wp.sh append [state.js]   read events from stdin, check them, append them
+#   wp.sh version [skill-dir] compare the installed skill with the newest tag on GitHub (read-only);
+#                             prints the update command when a newer one exists, never runs it
 # Default state file: .wallpainter/state.js (or state.js next to this script when run from inside .wallpainter).
 # `append` writes nothing when the syntax is invalid (checked with node if available)
 # or when a new code (c, own, close, qa) is already on the board or repeated in the batch.
@@ -13,6 +15,35 @@ fail() {
   echo "wp.sh: $1" >&2
   exit 1
 }
+
+if [ "$cmd" = version ]; then
+  skill_dir=$2
+  if [ -z "$skill_dir" ]; then
+    for d in "$HOME/.claude/skills/wallpainter" "$HOME/.wallpainter" ".agents/skills/wallpainter"; do
+      [ -f "$d/SKILL.md" ] && { skill_dir=$d; break; }
+    done
+  fi
+  [ -f "$skill_dir/SKILL.md" ] || fail "skill folder not found, pass it as the second argument"
+  installed=$(sed -n 's/^Skill version: \([0-9][0-9.]*\).*/\1/p' "$skill_dir/SKILL.md" | head -1)
+  [ -n "$installed" ] || fail "no 'Skill version:' line in $skill_dir/SKILL.md"
+  remote=${WP_REMOTE:-https://github.com/bausi2k/wallpainter.git}
+  latest=$(git ls-remote --tags --refs "$remote" 'v*' 2>/dev/null | sed 's#.*refs/tags/v##' |
+    sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
+  echo "installed: $installed ($skill_dir)"
+  if [ -z "$latest" ]; then
+    echo "latest: unknown (GitHub not reachable)"
+    exit 0
+  fi
+  echo "latest: $latest"
+  newest=$(printf '%s\n%s\n' "$installed" "$latest" | sort -t. -k1,1n -k2,2n -k3,3n | tail -1)
+  if [ "$installed" = "$latest" ] || [ "$newest" = "$installed" ]; then
+    echo "up to date"
+  else
+    echo "update available"
+    echo "update (run it yourself, then type /wallpainter): D=\"$skill_dir\"; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v$latest/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p \"\$D/\$(dirname \$f)\" && curl -fsSL \"\$U/\$f\" -o \"\$D/\$f\"; done"
+  fi
+  exit 0
+fi
 
 [ -f "$state" ] || fail "state file not found: $state"
 
@@ -74,6 +105,6 @@ case $cmd in
     printf 'ok: %s events appended\n' "$(grep -c '^W(' "$dir/new.js")"
     ;;
   *)
-    fail "usage: wp.sh code|append [state.js]"
+    fail "usage: wp.sh code|append [state.js] | version [skill-dir]"
     ;;
 esac
