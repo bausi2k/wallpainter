@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-wp-version="2.3.1">
+<html lang="en" data-wp-version="2.4.0">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -50,6 +50,7 @@ th{background:var(--soft)}
 .ov{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
 @media (max-width:760px){.ov{grid-template-columns:minmax(0,1fr)}.next{order:-1}}
 .tg{float:right;font-size:.8rem;font-weight:400;color:var(--mut);margin-top:.3rem}
+.newtopic{float:right;margin-top:.1rem;font-size:.8rem;padding:.15rem .6rem}
 .seg{display:inline-flex;background:var(--bg);border:1px solid var(--line);border-radius:9px;padding:2px;margin-bottom:.7rem}
 .seg button{font:inherit;font-size:.82rem;border:0;background:none;color:var(--mut);padding:.2rem .85rem;border-radius:7px;cursor:pointer}
 .seg button.on{background:var(--card);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.2)}
@@ -144,8 +145,8 @@ const ROW = 28, LANE_GAP = 18, LANE_PAD = 12;
 const CLOSED = new Set(["done", "dropped"]);
 const STATUS_COLOR = { open: "var(--mut)", active: "var(--acc)", blocked: "var(--bad)", done: "var(--ok)", dropped: "var(--mut)" };
 const TEXT = {
-  en: { overview: "Overview", path: "Path", next: "Up next", openAsks: "Open decisions", none: "Nothing open.", rec: "recommended", own: "your own solution", chosen: "Chosen", waits: "Waits for", blocks: "Blocks", branched: "New topic", allSteps: "all steps", missing: "state.js not found next to index.html", broken: "state.js has an error - showing the last valid state", empty: "No events yet. The agent appends them to state.js.", status: { open: "open", active: "active", blocked: "blocked", done: "done", dropped: "dropped" }, themeTitle: "Appearance", theme: { auto: "Auto", light: "Light", dark: "Dark" }, structure: "Structure", history: "History", ready: "ready", decide: "decide", close: "close this topic", closedBy: "closed with", ask: "ask a question", question: "Question", answer: "Answer", hide: "hide tab", hidden: "Hidden", refTitle: "copy a prepared question about this card", about: "about", legend: "<b>bold</b> = current path · <b>ready</b> = can be worked on now · ◆ open decision · red dashed = waits for" },
-  de: { overview: "Übersicht", path: "Pfad", next: "Als Nächstes", openAsks: "Offene Entscheidungen", none: "Nichts offen.", rec: "empfohlen", own: "eigene Lösung", chosen: "Gewählt", waits: "Wartet auf", blocks: "Blockiert", branched: "Neues Thema", allSteps: "alle Schritte", missing: "state.js fehlt neben index.html", broken: "state.js enthält einen Fehler - letzter gültiger Stand wird angezeigt", empty: "Noch keine Einträge. Der Agent schreibt sie nach state.js.", status: { open: "offen", active: "aktiv", blocked: "blockiert", done: "erledigt", dropped: "verworfen" }, themeTitle: "Darstellung", theme: { auto: "Auto", light: "Hell", dark: "Dunkel" }, structure: "Struktur", history: "Verlauf", ready: "bereit", decide: "entscheiden", close: "Thema schließen", closedBy: "geschlossen mit", ask: "Frage stellen", question: "Frage", answer: "Antwort", hide: "Tab ausblenden", hidden: "Ausgeblendet", refTitle: "vorbereitete Frage zu dieser Karte kopieren", about: "zu", legend: "<b>fett</b> = aktueller Pfad · <b>bereit</b> = jetzt bearbeitbar · ◆ offene Entscheidung · rot gestrichelt = wartet auf" },
+  en: { overview: "Overview", path: "Path", next: "Up next", openAsks: "Open decisions", none: "Nothing open.", rec: "recommended", own: "your own solution", chosen: "Chosen", waits: "Waits for", blocks: "Blocks", branched: "New topic", allSteps: "all steps", missing: "state.js not found next to index.html", broken: "state.js has an error - showing the last valid state", empty: "No events yet. The agent appends them to state.js.", status: { open: "open", active: "active", blocked: "blocked", done: "done", dropped: "dropped" }, themeTitle: "Appearance", theme: { auto: "Auto", light: "Light", dark: "Dark" }, structure: "Structure", history: "History", ready: "ready", decide: "decide", close: "close this topic", closedBy: "closed with", ask: "ask a question", question: "Question", answer: "Answer", hide: "hide tab", hidden: "Hidden", refTitle: "copy a prepared question about this card", about: "about", newTopic: "New topic", newKw: "new", newTitle: "copy the prefix, then type the title", legend: "<b>bold</b> = current path · <b>ready</b> = can be worked on now · ◆ open decision · red dashed = waits for" },
+  de: { overview: "Übersicht", path: "Pfad", next: "Als Nächstes", openAsks: "Offene Entscheidungen", none: "Nichts offen.", rec: "empfohlen", own: "eigene Lösung", chosen: "Gewählt", waits: "Wartet auf", blocks: "Blockiert", branched: "Neues Thema", allSteps: "alle Schritte", missing: "state.js fehlt neben index.html", broken: "state.js enthält einen Fehler - letzter gültiger Stand wird angezeigt", empty: "Noch keine Einträge. Der Agent schreibt sie nach state.js.", status: { open: "offen", active: "aktiv", blocked: "blockiert", done: "erledigt", dropped: "verworfen" }, themeTitle: "Darstellung", theme: { auto: "Auto", light: "Hell", dark: "Dunkel" }, structure: "Struktur", history: "Verlauf", ready: "bereit", decide: "entscheiden", close: "Thema schließen", closedBy: "geschlossen mit", ask: "Frage stellen", question: "Frage", answer: "Antwort", hide: "Tab ausblenden", hidden: "Ausgeblendet", refTitle: "vorbereitete Frage zu dieser Karte kopieren", about: "zu", newTopic: "Neues Thema", newKw: "neu", newTitle: "Präfix kopieren, dann den Titel tippen", legend: "<b>fett</b> = aktueller Pfad · <b>bereit</b> = jetzt bearbeitbar · ◆ offene Entscheidung · rot gestrichelt = wartet auf" },
 };
 
 const byId = (id) => document.getElementById(id);
@@ -415,9 +416,10 @@ function renderOverview() {
   const openAsks = [...model.asks.values()].filter(isOpenAsk);
   const asks = openAsks.length ? `<ul>${openAsks.map((a) => `<li><a data-go="${esc(a.id)}"><span class="tag">${esc(a.id)}</span>${inline(a.q)}</a><span class="why">${[...asList(a.opts).map((o) => esc(o.c)), a.own ? `${esc(a.own)} -` : ""].filter(Boolean).join(" · ")}</span></li>`).join("")}</ul>` : `<p class="why">${esc(tx().none)}</p>`;
   const segments = ["structure", "history"].map((v) => `<button type="button" data-view="${v}"${v === view ? ' class="on"' : ""}>${esc(tx()[v])}</button>`).join("");
+  const newTag = `<button type="button" class="code newtopic" id="new-topic" data-copy="${esc(tx().newKw)} - " title="${esc(tx().newTitle)}">＋ ${esc(tx().newTopic)}</button>`;
   const body = view === "history"
-    ? `<label class="tg"><input type="checkbox" id="all"${showAll ? " checked" : ""}> ${esc(tx().allSteps)}</label><div class="seg">${segments}</div><div id="graph">${renderGraph()}</div>`
-    : `<div class="seg">${segments}</div>${renderTree()}<div class="legend">${tx().legend}</div>`;
+    ? `${newTag}<label class="tg"><input type="checkbox" id="all"${showAll ? " checked" : ""}> ${esc(tx().allSteps)}</label><div class="seg">${segments}</div><div id="graph">${renderGraph()}</div>`
+    : `${newTag}<div class="seg">${segments}</div>${renderTree()}<div class="legend">${tx().legend}</div>`;
   return `<div class="ov">
     <section class="card">${body}</section>
     <aside class="card next"><h2>${esc(tx().next)}</h2>${renderNext()}<h2 style="margin-top:1rem">${esc(tx().openAsks)}</h2>${asks}</aside>
