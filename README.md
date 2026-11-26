@@ -159,6 +159,15 @@ Run the download command again with the newest [tag](https://github.com/bausi2k/
 
 Version 2.0.0 replaced the single file `wallpainter.skill` with the skill folder. Download the folder with one of the commands above, and in your instruction file replace `wallpainter.skill` with `SKILL.md` (way 1) or with the one-line rule (way 2). Existing boards keep working. Installations pinned to `v1.3.x` keep working too.
 
+## Availability
+
+Wallpainter is public, but nothing installs it for you: every user has to install it themselves with one of the four ways above. For Claude Code that is two commands (way 4).
+
+- **Where:** this repository is the plugin and its own marketplace. It is not listed in an official plugin directory.
+- **License:** [PolyForm Noncommercial 1.0.0](LICENSE). Personal, research and educational use is fine; commercial use is not permitted.
+- **Not verified:** a real plugin install from GitHub in a clean environment (the manifests pass `claude plugin validate .`), and the skill in Cursor, Codex, Gemini CLI and Antigravity.
+- **Updates:** nothing updates silently. Plugin users run `/plugin update wallpainter`; skill-folder and instruction-file users download the newest [tag](https://github.com/bausi2k/wallpainter/tags).
+
 ## Token efficiency
 
 Wallpainter is designed to cost fewer tokens than a wall of text:
