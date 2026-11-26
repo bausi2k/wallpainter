@@ -6,7 +6,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 2.5.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 2.6.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > Files: this `SKILL.md` (the protocol) and `assets/index.html` (the viewer). Copy the viewer into each project with the command in §3; never read it into context.
 
@@ -188,6 +188,7 @@ Every `topic` carries `close:"<code>"`, so the user can end a problem at any tim
 ## 7. Topics, branching, dependencies
 
 - **Branch** (new `topic` with `from`) when a sub-problem needs its own decision(s) or several steps **and** can be worked or decided separately. A detail belongs in a step, not a branch.
+- **Limit: at most 5 open topics at once.** Record a new sub-problem as a step first; promote it to a topic only when it needs its own decision or several steps. Before the 6th open topic, ask in one line which open topic to close or drop; do not open it before the answer.
 - Set `status` `active` while working on a topic, `blocked` plus a `dep` when it waits for another topic, `done` when it is resolved (shown as a merge into its parent), and `dropped` (with `note`) when it is abandoned.
 - The first topic (`T1`) is the root problem and stays open until the whole task is done.
 - Close a topic with a `result` step before setting `done`.
@@ -209,14 +210,15 @@ Every `topic` carries `close:"<code>"`, so the user can end a problem at any tim
 After updating the board, reply in the user's language with **at most 5 lines**. A line is one short sentence or one template line; wrapped long text counts as several lines.
 
 ```
-WP · T2 bcrypt cost (new, from T1 · close c9e1 · ask 7d3a) · +3 steps
+WP · T2 bcrypt cost (new, from T1 · close c9e1 · ask 7d3a) · +3 steps · 4/5 open
 D2 Migrate hashes?  5b8d Rehash on login (rec) | 9f1a Batch job | 2d6c - own
 Next: D2 → T3
 ```
 
-- Line 1: the topic you worked on, its close code, and what changed.
-- Lines 2–3: open decisions, each with its codes and short labels, so the user can answer without opening the board.
-- Last line: the next items.
+- Line 1: the topic you worked on, its close code, what changed, and the number of open topics against the limit (`4/5 open`, §7).
+- Lines 2–3: open decisions, each with its codes and short labels, so the user can answer without opening the board. Show at most 2 open decisions; the rest stay on the board (`+3 more on the board`).
+- Last line: one Next entry. The ranked list stays on the board.
+- **No second question:** if your environment adds its own next-step box or question, do not add another question in the text; the decisions and the Next entry above are the only prompts.
 - Allowed on top, only when needed: one extra sentence for a single fact, and one short code block with a command the user must run or an error they must see.
 
 **Hard rules**
@@ -254,7 +256,7 @@ W({t:"next", items:[{ref:"D1", why:"blocks T2 and T3"},{ref:"T3", why:"cheap win
 Chat:
 
 ```
-WP · T1 analysed (close f3a0, ask a8d5), split into T2 bcrypt cost (c9e1/7d3a) and T3 index (b7d2/e46c)
+WP · T1 analysed (close f3a0, ask a8d5), split into T2 bcrypt cost (c9e1/7d3a) and T3 index (b7d2/e46c) · 3/5 open
 D1 bcrypt cost?  a3f9 12 (rec) | 7c2e 10 | e01d - own
 Next: D1 → T3
 ```
