@@ -1,6 +1,6 @@
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 1.3.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 1.3.3 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > **Agent: load sections 0–11 into context. Do NOT read Appendix A** (the viewer, ~650 lines).
 > Copy it into the project with the command in §3. To read only the protocol:
@@ -35,7 +35,7 @@ User commands (case-insensitive, anywhere in a message):
 |---|---|
 | `wp off` / `wp on` | Pause or resume the protocol for this session. |
 | `wp` | Reprint open decisions and the next list in chat (§9 format). |
-| `wp open` | Open the board in the browser. |
+| `wp open` | Open the board in the system browser (§3, step 4). |
 | `wp new <title>` | Archive the board (rename `state.js` to `state-<YYYYMMDD-HHMM>.js`), then start a fresh one. |
 | `focus T3` | Make T3 the current topic. |
 
@@ -57,7 +57,11 @@ Run only if `.wallpainter/index.html` is missing, or if its `data-wp-version` is
    W({t:"board", title:"<short goal>", lang:"<user language, e.g. de>"})
    ```
 3. Add `.wallpainter/` to `.gitignore` (default). Say so in one chat line; if the user wants the board versioned, remove the entry.
-4. Open the board once: `open .wallpainter/index.html` on macOS, `xdg-open` on Linux, `start` on Windows. It reloads `state.js` every 2 s by itself.
+4. Open the board once in the user's **system browser**: `open .wallpainter/index.html` on macOS, `xdg-open` on Linux, `start` on Windows. It reloads `state.js` every 2 s by itself.
+   Never open it via `file://` in an embedded agent browser (for example a browser pane of your own app). Such panes often show static snapshots or `data:` copies that cannot reach `state.js`, so the board stays empty. If the user wants it inside such a pane, serve it locally and open `http://localhost:8766`:
+   ```sh
+   python3 -m http.server 8766 --bind 127.0.0.1 --directory .wallpainter
+   ```
 
 ## 4. Event log format
 
@@ -229,7 +233,7 @@ Copy by command (§3). Do not read or modify.
 ```html
 <!-- wallpainter:viewer:begin -->
 <!doctype html>
-<html lang="en" data-wp-version="1.3.0">
+<html lang="en" data-wp-version="1.3.3">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -338,6 +342,7 @@ th{background:var(--soft)}
 .own{margin-top:.6rem;color:var(--mut);font-size:.88rem}
 .ans{margin-top:.6rem;color:var(--ok);font-weight:600}
 .empty{color:var(--mut);text-align:center;padding:3rem 0}
+.nojs{max-width:640px;margin:3rem auto;padding:16px 20px;background:var(--card);border:1px solid var(--line);border-radius:12px}
 </style>
 </head>
 <body>
@@ -346,9 +351,17 @@ th{background:var(--soft)}
   <nav id="tabs"></nav>
   <div id="err" hidden></div>
 </header>
+<div class="nojs" id="nojs">
+  <h2>This view cannot load the board</h2>
+  <p>You are probably looking at a static preview or copy, for example in an agent's built-in browser. It cannot run the board or reach <code>state.js</code>. Open the board in your system browser:</p>
+  <pre><code>open .wallpainter/index.html</code></pre>
+  <p>Linux: <code>xdg-open</code>, Windows: <code>start</code>. To show it inside an embedded browser, serve it locally and open <code>http://localhost:8766</code>:</p>
+  <pre><code>python3 -m http.server 8766 --bind 127.0.0.1 --directory .wallpainter</code></pre>
+</div>
 <main id="main"></main>
 <script>
 "use strict";
+document.getElementById("nojs").hidden = true;
 const POLL_MS = 2000;
 const MERMAID_SRC = "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js";
 const ROW = 28, LANE_GAP = 18, LANE_PAD = 12;
@@ -404,7 +417,9 @@ function finishLoad(script, missing) {
   const error = missing || loadError;
   byId("err").hidden = !error;
   byId("err").textContent = error;
+  if (missing && !lastKey) showOpenHint();
   if (error) return;
+  byId("nojs").hidden = true;
   const key = JSON.stringify(buffer);
   if (key === lastKey) return;
   seen = lastKey ? model.count : buffer.length;
@@ -428,6 +443,12 @@ function cycleTheme() {
   theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
   store("wp-theme", theme);
   rerender();
+}
+
+/* Without a reachable state.js (static preview or data: copy) explain how to open the board. */
+function showOpenHint() {
+  byId("nojs").hidden = false;
+  byId("main").replaceChildren();
 }
 
 /* ---------- event folding ---------- */
@@ -562,6 +583,7 @@ function rerender() {
 }
 
 function render() {
+  if (!lastKey) return; // nothing loaded yet: keep the open hint instead of an empty board
   const [view] = location.hash.slice(1).split(":");
   const current = model.topics.has(view) ? view : "overview";
   document.documentElement.lang = model.lang;
