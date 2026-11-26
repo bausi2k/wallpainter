@@ -32,6 +32,7 @@ Long agent sessions turn into scrollback soup:
 - **One tab per topic**: every sub-problem gets its own tab with a top-to-bottom timeline of steps: notes, Mermaid diagrams, side-by-side before/after comparisons, diffs and results.
 - **Decisions with answer codes**: each option gets a short random code. You answer in chat by typing the code.
 - **Close codes**: every topic has its own code. Typing it closes the problem.
+- **Question codes**: a second code per topic lets you ask questions that are answered on the board.
 - **Short chat**: the agent replies with at most 5 lines and points to the board.
 
 ## Answering decisions
@@ -57,6 +58,16 @@ Every topic (problem) has its own close code. It is shown in the topic header an
 
 Closing a topic also closes its open sub-topics. Its open decisions disappear, and topics that waited for it become *ready*.
 
+## Asking about a topic
+
+Every topic also has a **question code**, shown in the topic header next to the close code (click to copy; the dash is included).
+
+| You type | Meaning |
+|---|---|
+| `7d3a - Why cost 12?` | A question about that topic. |
+
+The agent answers on the board as a question/answer card in that topic's timeline and replies in chat with one line. A question changes neither status nor focus.
+
 ## Commands
 
 | Command | Effect |
@@ -77,12 +88,12 @@ Wallpainter is a folder with two files: `SKILL.md` (the protocol) and `assets/in
 | Protocol in context | every session | only when a board is needed | only when a board is needed |
 | You add | folder + block in `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` | folder + one-line rule in `CLAUDE.md` | folder + one-line rule |
 
-All commands pin a release (`v2.0.0`), so changes in this repository never reach your sessions unannounced. To update, run the download again with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
+All commands pin a release (`v2.1.0`), so changes in this repository never reach your sessions unannounced. To update, run the download again with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
 
 ### 1. Instruction file (any agent)
 
 ```bash
-D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.0.0/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
+D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.1.0/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
 ```
 
 ```markdown
@@ -90,12 +101,12 @@ D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.0.0
 Follow the Wallpainter protocol in `~/.wallpainter/SKILL.md`; read it at session start.
 ```
 
-Without a download, point the block at the URLs instead and load them with `curl` (not a web-fetch tool, which may summarise the file): `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.0.0/skills/wallpainter/SKILL.md` and `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.0.0/skills/wallpainter/assets/index.html`.
+Without a download, point the block at the URLs instead and load them with `curl` (not a web-fetch tool, which may summarise the file): `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.1.0/skills/wallpainter/SKILL.md` and `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.1.0/skills/wallpainter/assets/index.html`.
 
 ### 2. Claude Code skill
 
 ```bash
-D=~/.claude/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.0.0/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
+D=~/.claude/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.1.0/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
 ```
 
 Skills load on demand, but Wallpainter is a way of communicating, so add a one-line rule to `~/.claude/CLAUDE.md`:
@@ -110,7 +121,7 @@ For any reply longer than ~8 lines, with a decision between options, or with sev
 Copy the folder into Antigravity's skills directory: per project `.agents/skills/wallpainter/`, or the global skills folder named in the [Antigravity docs](https://antigravity.google/docs/skills). Then add the same one-line rule as an Antigravity rule (for example `.agents/rules/wallpainter.md`).
 
 ```bash
-D=.agents/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.0.0/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
+D=.agents/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.1.0/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
 ```
 
 ### What happens next
@@ -119,7 +130,7 @@ On first use in a project, the agent creates `.wallpainter/`, copies the viewer 
 
 ### Upgrading from 1.x
 
-Version 2.0.0 replaces the single file `wallpainter.skill` with the skill folder. Download the folder with one of the commands above, and in your instruction file replace `wallpainter.skill` with `SKILL.md` (way 1) or with the one-line rule (way 2). Existing boards keep working. Installations pinned to `v1.3.x` keep working too.
+Version 2.0.0 replaced the single file `wallpainter.skill` with the skill folder. Download the folder with one of the commands above, and in your instruction file replace `wallpainter.skill` with `SKILL.md` (way 1) or with the one-line rule (way 2). Existing boards keep working. Installations pinned to `v1.3.x` keep working too.
 
 ## Token efficiency
 
