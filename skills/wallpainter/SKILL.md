@@ -6,7 +6,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 2.2.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 2.3.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > Files: this `SKILL.md` (the protocol) and `assets/index.html` (the viewer). Copy the viewer into each project with the command in §3; never read it into context.
 
@@ -114,7 +114,7 @@ Step kinds:
 | `compare` | `a:{h, md}`, `b:{h, md}` | Left/right: current vs. target state, option A vs. B. |
 | `code` | `code`, `lang` | Snippets. `lang:"diff"` colours `+` and `-` lines. |
 | `result` | `md` | Outcome or conclusion of a topic (highlighted). |
-| `qa` | `q`, `a` | The user's question about a topic and your answer (§6, Questions). |
+| `qa` | `q`, `a`, `ref?` | The user's question about a topic and your answer; `ref` is the card it is about (§6, Questions). |
 
 `md` supports paragraphs, `- lists`, `1. lists`, `**bold**`, `` `code` ``, fenced code, `#` headings, `[text](url)` and `| pipe | tables |`.
 
@@ -153,7 +153,8 @@ W({t:"ask", id:"D2", in:"T2", q:"How do we migrate existing hashes?", md:"option
 Every `topic` also carries `qa:"<code>"`, a second code (different from `close`) for questions:
 
 - `7d3a - Why cost 12?`: a question about that topic. Without text after the code, ask back in one line.
-- Answer on the board, not in chat: append `W({t:"step", id:"S20", in:"T2", kind:"qa", title:"Question", q:"Why cost 12?", a:"<answer in md>"})` to that topic, with a diagram or code block in `a` if it helps.
+- `7d3a S4 - Why this value?`: a question about one card. The id (`S4`, `D2`, ...) sits between code and dash; the viewer's ID chip on each card copies this prefix. Answer as below with `ref:"S4"`, and answer about that card, not the whole topic.
+- Answer on the board, not in chat: append `W({t:"step", id:"S20", in:"T2", kind:"qa", title:"Question", q:"Why cost 12?", ref:"S4", a:"<answer in md>"})` (`ref` only when the question named a card) to that topic, with a diagram or code block in `a` if it helps.
 - Chat gets one line: `WP · answer in T2 → S20`, plus at most one sentence if the answer is a single fact.
 - A question changes neither status, focus nor `next`. Only if the answer reveals a new problem, open a new topic or decision.
 - Questions about a decision are possible too: put them in the decision's topic and name the decision (`D2`) in `q`.

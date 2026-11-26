@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-wp-version="2.2.0">
+<html lang="en" data-wp-version="2.3.0">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -69,6 +69,8 @@ th{background:var(--soft)}
 .node .close-code{flex:none;font-size:.72rem;padding:0 .35rem}
 .legend{margin-top:.7rem;font-size:.78rem;color:var(--mut)}
 .closer{margin-top:.4rem;font-size:.85rem;color:var(--mut)}
+.ref-code{font-size:.7rem;padding:0 .35rem;margin-left:.4rem;text-transform:none;letter-spacing:0}
+.qa-ref{font-size:.8rem;color:var(--mut);margin-bottom:.2rem}
 .qa{border-left:3px solid var(--acc)}
 .qa-q{font-weight:600}
 .qa-a{margin-top:.4rem;padding-top:.4rem;border-top:1px dashed var(--line)}
@@ -142,8 +144,8 @@ const ROW = 28, LANE_GAP = 18, LANE_PAD = 12;
 const CLOSED = new Set(["done", "dropped"]);
 const STATUS_COLOR = { open: "var(--mut)", active: "var(--acc)", blocked: "var(--bad)", done: "var(--ok)", dropped: "var(--mut)" };
 const TEXT = {
-  en: { overview: "Overview", path: "Path", next: "Up next", openAsks: "Open decisions", none: "Nothing open.", rec: "recommended", own: "your own solution", chosen: "Chosen", waits: "Waits for", blocks: "Blocks", branched: "New topic", allSteps: "all steps", missing: "state.js not found next to index.html", broken: "state.js has an error - showing the last valid state", empty: "No events yet. The agent appends them to state.js.", status: { open: "open", active: "active", blocked: "blocked", done: "done", dropped: "dropped" }, themeTitle: "Appearance", theme: { auto: "Auto", light: "Light", dark: "Dark" }, structure: "Structure", history: "History", ready: "ready", decide: "decide", close: "close this topic", closedBy: "closed with", ask: "ask a question", question: "Question", answer: "Answer", hide: "hide tab", hidden: "Hidden", legend: "<b>bold</b> = current path · <b>ready</b> = can be worked on now · ◆ open decision · red dashed = waits for" },
-  de: { overview: "Übersicht", path: "Pfad", next: "Als Nächstes", openAsks: "Offene Entscheidungen", none: "Nichts offen.", rec: "empfohlen", own: "eigene Lösung", chosen: "Gewählt", waits: "Wartet auf", blocks: "Blockiert", branched: "Neues Thema", allSteps: "alle Schritte", missing: "state.js fehlt neben index.html", broken: "state.js enthält einen Fehler - letzter gültiger Stand wird angezeigt", empty: "Noch keine Einträge. Der Agent schreibt sie nach state.js.", status: { open: "offen", active: "aktiv", blocked: "blockiert", done: "erledigt", dropped: "verworfen" }, themeTitle: "Darstellung", theme: { auto: "Auto", light: "Hell", dark: "Dunkel" }, structure: "Struktur", history: "Verlauf", ready: "bereit", decide: "entscheiden", close: "Thema schließen", closedBy: "geschlossen mit", ask: "Frage stellen", question: "Frage", answer: "Antwort", hide: "Tab ausblenden", hidden: "Ausgeblendet", legend: "<b>fett</b> = aktueller Pfad · <b>bereit</b> = jetzt bearbeitbar · ◆ offene Entscheidung · rot gestrichelt = wartet auf" },
+  en: { overview: "Overview", path: "Path", next: "Up next", openAsks: "Open decisions", none: "Nothing open.", rec: "recommended", own: "your own solution", chosen: "Chosen", waits: "Waits for", blocks: "Blocks", branched: "New topic", allSteps: "all steps", missing: "state.js not found next to index.html", broken: "state.js has an error - showing the last valid state", empty: "No events yet. The agent appends them to state.js.", status: { open: "open", active: "active", blocked: "blocked", done: "done", dropped: "dropped" }, themeTitle: "Appearance", theme: { auto: "Auto", light: "Light", dark: "Dark" }, structure: "Structure", history: "History", ready: "ready", decide: "decide", close: "close this topic", closedBy: "closed with", ask: "ask a question", question: "Question", answer: "Answer", hide: "hide tab", hidden: "Hidden", refTitle: "copy a prepared question about this card", about: "about", legend: "<b>bold</b> = current path · <b>ready</b> = can be worked on now · ◆ open decision · red dashed = waits for" },
+  de: { overview: "Übersicht", path: "Pfad", next: "Als Nächstes", openAsks: "Offene Entscheidungen", none: "Nichts offen.", rec: "empfohlen", own: "eigene Lösung", chosen: "Gewählt", waits: "Wartet auf", blocks: "Blockiert", branched: "Neues Thema", allSteps: "alle Schritte", missing: "state.js fehlt neben index.html", broken: "state.js enthält einen Fehler - letzter gültiger Stand wird angezeigt", empty: "Noch keine Einträge. Der Agent schreibt sie nach state.js.", status: { open: "offen", active: "aktiv", blocked: "blockiert", done: "erledigt", dropped: "verworfen" }, themeTitle: "Darstellung", theme: { auto: "Auto", light: "Hell", dark: "Dunkel" }, structure: "Struktur", history: "Verlauf", ready: "bereit", decide: "entscheiden", close: "Thema schließen", closedBy: "geschlossen mit", ask: "Frage stellen", question: "Frage", answer: "Antwort", hide: "Tab ausblenden", hidden: "Ausgeblendet", refTitle: "vorbereitete Frage zu dieser Karte kopieren", about: "zu", legend: "<b>fett</b> = aktueller Pfad · <b>bereit</b> = jetzt bearbeitbar · ◆ offene Entscheidung · rot gestrichelt = wartet auf" },
 };
 
 const byId = (id) => document.getElementById(id);
@@ -352,6 +354,11 @@ function md(src) {
 }
 
 const link = (id) => `<a data-go="${esc(id)}">${esc(id)}</a>`;
+/* ID chip: copies "<question code> <id> - " so a question can name exactly one card. */
+function refButton(id, topicId) {
+  const qa = model.topics.get(topicId)?.qa;
+  return `<button type="button" class="code ref-code" data-copy="${esc(qa ? `${qa} ${id} - ` : id)}" title="${esc(tx().refTitle)}">${esc(id)}</button>`;
+}
 const questionButton = (code) => `<button class="code qa-code" data-copy="${esc(code)} - " title="${esc(tx().ask)}">${esc(code)}</button>`;
 const closeButton = (code) => `<button class="code close-code" data-copy="${esc(code)}" title="${esc(tx().close)}">${esc(code)}</button>`;
 const statusChip = (s) => `<span class="s" style="--c:${STATUS_COLOR[s] || "var(--mut)"}">${esc(tx().status[s] || s)}</span>`;
@@ -607,7 +614,7 @@ function renderItem(e) {
     case "status": return mini(`${statusChip(e.s)}${e.by ? ` <code>${esc(e.by)}</code>` : ""}${e.note ? ` ${inline(e.note)}` : ""}`, STATUS_COLOR[e.s] || "var(--mut)");
     case "dep": return mini(`${esc(words.waits)} ${link(e.on)}${e.note ? ` – ${inline(e.note)}` : ""}`, "var(--bad)");
     case "ask": return `<li class="${fresh}" style="--c:var(--warn)">${renderAsk(e)}</li>`;
-    default: return `<li class="${fresh}"${e.id ? ` id="${esc(e.id)}"` : ""} style="--c:${e.kind === "result" ? "var(--ok)" : "var(--acc)"}"><div class="card${e.kind === "result" ? " result" : ""}"><span class="kind">${esc(e.kind || "note")}</span>${e.title ? `<h3>${esc(e.title)}</h3>` : ""}${renderBody(e)}</div></li>`;
+    default: return `<li class="${fresh}"${e.id ? ` id="${esc(e.id)}"` : ""} style="--c:${e.kind === "result" ? "var(--ok)" : "var(--acc)"}"><div class="card${e.kind === "result" ? " result" : ""}"><span class="kind">${esc(e.kind || "note")}${e.id ? refButton(e.id, e.in) : ""}</span>${e.title ? `<h3>${esc(e.title)}</h3>` : ""}${renderBody(e)}</div></li>`;
   }
 }
 
@@ -616,7 +623,7 @@ function renderBody(e) {
     case "compare": return `<div class="cmp">${[e.a, e.b].map((side) => `<div><h4>${esc(side?.h || "")}</h4>${md(side?.md)}</div>`).join("")}</div>${md(e.md)}`;
     case "diagram": return `<div class="mermaid">${esc(e.mermaid)}</div>${md(e.md)}`;
     case "code": return codeBlock(e.code, e.lang) + md(e.md);
-    case "qa": return `<div class="qa"><div class="qa-q">${inline(e.q)}</div><div class="qa-a">${md(e.a)}</div></div>`;
+    case "qa": return `<div class="qa">${e.ref ? `<div class="qa-ref">${esc(tx().about)} ${link(e.ref)}</div>` : ""}<div class="qa-q">${inline(e.q)}</div><div class="qa-a">${md(e.a)}</div></div>`;
     default: return md(e.md);
   }
 }
@@ -631,7 +638,7 @@ function renderAsk(a) {
   const opts = asList(a.opts).map((o) => `<div class="opt${o.rec ? " rec" : ""}${o.c === chosen ? " chosen" : ""}"><button class="code" data-copy="${esc(o.c)}">${esc(o.c)}</button> <b>${esc(o.h || "")}</b>${o.rec ? `<span class="badge">${esc(words.rec)}</span>` : ""}${md(o.md)}${prosCons(o)}</div>`).join("");
   const own = a.own ? `<div class="own"><button class="code" data-copy="${esc(a.own)} - ">${esc(a.own)}</button> - ${esc(words.own)}</div>` : "";
   const answer = a.answer ? `<div class="ans">✓ ${esc(words.chosen)}: ${esc(a.answer.c || "")}${a.answer.note ? ` – ${inline(a.answer.note)}` : ""}</div>` : "";
-  return `<div class="card ask${a.answer ? " answered" : ""}" id="${esc(a.id)}"><div class="q"><span class="tag">${esc(a.id)}</span>${inline(a.q)}</div>${md(a.md)}<div class="opts">${opts}</div>${own}${answer}</div>`;
+  return `<div class="card ask${a.answer ? " answered" : ""}" id="${esc(a.id)}"><div class="q"><span class="tag">${esc(a.id)}</span>${inline(a.q)}${refButton(a.id, a.in)}</div>${md(a.md)}<div class="opts">${opts}</div>${own}${answer}</div>`;
 }
 
 function runMermaid() {
