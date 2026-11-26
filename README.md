@@ -15,21 +15,20 @@ Long agent sessions turn into scrollback soup:
 ## What Wallpainter does
 
 ```
-┌ Overview ─┬ T1 Login slow ─┬ T2 bcrypt ●2 ─┬ T3 Index ─┐
+┌ Overview ─┬ T1 Login slow ─┬ T2 bcrypt ●1 ─┬ T3 Index ─┐
 │                                                        │
-│  Path                            │  Up next            │
-│  ●─────── T1 Login takes 4 s     │  1 D2 Migrate hash? │
-│  ├──●     T2 bcrypt cost         │    blocks T2 deploy │
-│  │  ◆     ? D1 Where to start    │  2 T3 Index         │
-│  ├──┼──●  T3 Index users.email   │    waits for T2     │
-│  │  │  ┆→ waits for T2           │                     │
-│  │  ●     ✓ D1 → a3f9 cost 12    │  Open decisions     │
-│  │  ◆     ? D2 Migrate hashes    │  D2 5b8d·9f1a·2d6c -│
+│ [Structure | History]            │  Up next            │
+│ ┌┄ ● T1 Login takes 4 s          │  1 D2 Migrate hash? │
+│ ┆  ├─ ● T2 bcrypt cost   ready   │    blocks T2 deploy │
+│ ┆  │   └─ ◆ D2 Migrate? decide   │  2 T3 Index         │
+│ └┄►├─ ● T3 Index    waits for T2 │    waits for T2     │
+│    └─ ○ T4 Sessions   dropped    │                     │
 └────────────────────────────────────────────────────────┘
 ```
 
 - **One board per project** at `.wallpainter/index.html`. It reloads by itself while the agent works.
-- **Overview**: a git-style graph of all topics (branches, merges, dependencies; the current path is highlighted), with the agent's ranked list of what to do or decide next beside it.
+- **Overview, structure view**: problem → sub-problems as a tree, open decisions as ◆ leaves, red "waits for" arcs, the current path in bold. Topics that can be worked on right now are marked *ready* (Mikado principle: leaves first). The ranked list of what to do or decide next sits beside it.
+- **Overview, history view**: a git-style graph showing when topics branched off and merged back.
 - **One tab per topic**: every sub-problem gets its own tab with a top-to-bottom timeline of steps: notes, Mermaid diagrams, side-by-side before/after comparisons, diffs and results.
 - **Decisions with answer codes**: each option gets a short random code. You answer in chat by typing the code.
 - **Short chat**: the agent replies with at most 5 lines and points to the board.
