@@ -77,12 +77,12 @@ Pick one of two ways and add its block to your agent's instruction file: `CLAUDE
 | Session start | offline, no network call | one `curl` per session |
 | Updates | download again | change the tag in the block |
 
-Both pin a release (`v1.3.0`), so changes in this repository never reach your sessions unannounced. To update, replace the version with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
+Both pin a release (`v1.3.3`), so changes in this repository never reach your sessions unannounced. To update, replace the version with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
 
 ### Option A: local copy
 
 ```bash
-mkdir -p ~/.wallpainter && curl -fsSL https://raw.githubusercontent.com/bausi2k/wallpainter/v1.3.0/wallpainter.skill -o ~/.wallpainter/wallpainter.skill
+mkdir -p ~/.wallpainter && curl -fsSL https://raw.githubusercontent.com/bausi2k/wallpainter/v1.3.3/wallpainter.skill -o ~/.wallpainter/wallpainter.skill
 ```
 
 ```markdown
@@ -97,8 +97,8 @@ Skill source for the viewer setup (§3): `~/.wallpainter/wallpainter.skill`
 ```markdown
 ## Communication (Wallpainter)
 Follow the Wallpainter protocol. At session start, load it (never read past "## Appendix A"):
-`curl -fsSL https://raw.githubusercontent.com/bausi2k/wallpainter/v1.3.0/wallpainter.skill | sed -n '1,/^## Appendix A/p'`
-Skill source for the viewer setup (§3): https://raw.githubusercontent.com/bausi2k/wallpainter/v1.3.0/wallpainter.skill
+`curl -fsSL https://raw.githubusercontent.com/bausi2k/wallpainter/v1.3.3/wallpainter.skill | sed -n '1,/^## Appendix A/p'`
+Skill source for the viewer setup (§3): https://raw.githubusercontent.com/bausi2k/wallpainter/v1.3.3/wallpainter.skill
 ```
 
 Use `curl`, not a web-fetch tool. Some agents summarise fetched pages, which drops protocol details; `curl` returns the file verbatim.
