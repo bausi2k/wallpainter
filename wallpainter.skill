@@ -1,0 +1,700 @@
+# Wallpainter — visual, token-lean conversation protocol for coding agents
+
+Skill version: 1.0.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+
+> **Agent: load sections 0–11 into context. Do NOT read Appendix A** (the viewer, ~490 lines).
+> Copy it into the project with the command in §3. To read only the protocol:
+> `sed -n '1,/^## Appendix A/p' <path-to>/wallpainter.skill`
+
+## 0. Rules at a glance
+
+1. Never answer with a wall of text. Explanations, analyses, comparisons and decisions go to the **board**; the chat gets at most 5 lines (§9).
+2. The board is one append-only event log, `.wallpainter/state.js`. You only **append** events (§4). You never rewrite or re-read it whole.
+3. Every decision has options with random 4-hex **answer codes**, plus an **own** code for the user's own solution (§6).
+4. Every sub-problem that needs its own decisions or several steps gets its own **topic** (one tab), linked to its parent (§7).
+5. After each turn, you keep the **focus** (current path) and the ranked **next** list up to date (§8).
+
+## 1. Purpose
+
+Linear chat hides structure: one problem turns into three, decisions get buried, and the user loses track of which path is current. Wallpainter moves that structure into a local HTML board:
+
+- **Overview tab**: a git-style graph of all topics (branches, merges, dependencies, current path) and, beside it, your ranked list of what to do or decide next.
+- **One tab per topic**: a top-to-bottom timeline of steps (notes, diagrams, before/after comparisons, diffs, results) and decision cards.
+
+The viewer is static and renders whatever is in `state.js`. You write data, never markup.
+
+## 2. When to use the board
+
+Use it when your reply would exceed ~8 lines, contains a decision with 2+ options, splits into sub-problems, or compares states or alternatives.
+
+Answer in chat as usual when the reply is short (a fact, a yes/no, a one-line confirmation) or the user typed `wp off`.
+
+User commands (case-insensitive, anywhere in a message):
+
+| Command | Effect |
+|---|---|
+| `wp off` / `wp on` | Pause or resume the protocol for this session. |
+| `wp` | Reprint open decisions and the next list in chat (§9 format). |
+| `wp open` | Open the board in the browser. |
+| `wp new <title>` | Archive the board (rename `state.js` to `state-<YYYYMMDD-HHMM>.js`), then start a fresh one. |
+| `focus T3` | Make T3 the current topic. |
+
+## 3. Setup (once per project)
+
+Run only if `.wallpainter/index.html` is missing, or if its `data-wp-version` is older than this skill's version.
+
+1. Extract the viewer from Appendix A without loading it into context. Use the source you loaded this skill from:
+   ```sh
+   mkdir -p .wallpainter
+   awk '/^<!-- wallpainter:viewer:begin -->$/{f=1;next} /^<!-- wallpainter:viewer:end -->$/{f=0} f' <path-to>/wallpainter.skill > .wallpainter/index.html
+   # or, from a URL:
+   curl -fsSL <raw-url>/wallpainter.skill | awk '/^<!-- wallpainter:viewer:begin -->$/{f=1;next} /^<!-- wallpainter:viewer:end -->$/{f=0} f' > .wallpainter/index.html
+   ```
+   Without shell access, copy Appendix A verbatim (the lines between the two marker lines).
+2. Create `.wallpainter/state.js`:
+   ```js
+   // Wallpainter event log - append only. Format: wallpainter.skill section 4.
+   W({t:"board", title:"<short goal>", lang:"<user language, e.g. de>"})
+   ```
+3. Add `.wallpainter/` to `.gitignore` (default). Say so in one chat line; if the user wants the board versioned, remove the entry.
+4. Open the board once: `open .wallpainter/index.html` on macOS, `xdg-open` on Linux, `start` on Windows. It reloads `state.js` every 2 s by itself.
+
+## 4. Event log format
+
+`state.js` is plain JavaScript: one `W({...})` call per event, in chronological order. Keys may be unquoted. For multi-line text use template literals (`` `...` ``) and escape `` ` `` and `${` inside them.
+
+Append with one shell heredoc per turn (quoted delimiter, so nothing is interpolated):
+
+```sh
+cat >> .wallpainter/state.js <<'WP'
+W({t:"step", id:"S7", in:"T2", kind:"note", title:"...", md:`...`})
+W({t:"next", items:[{ref:"D3", why:"..."}]})
+WP
+node --check .wallpainter/state.js   # if node exists; a syntax error blanks nothing, but the board stops updating
+```
+
+Without shell access, append the lines to the end of the file with your edit tool.
+
+### IDs
+
+- Topics `T1, T2, ...`; decisions `D1, D2, ...`; steps `S1, S2, ...`. Sequential per board, never reused.
+- If you lost track (for example after context compaction), find the last one: `grep -o 'id:"T[0-9]*"' .wallpainter/state.js | tail -1`.
+- Recover the board skeleton cheaply: `grep -E 't:"(topic|ask|answer|status|dep|focus|next)"' .wallpainter/state.js`.
+- `T1`, `D2`, `S3` written in any text field become clickable links in the viewer.
+
+### Event reference
+
+| `t` | Fields | Meaning |
+|---|---|---|
+| `board` | `title`, `lang` (`de`, `en`, ...) | Board title and UI language. First line. |
+| `topic` | `id`, `title`, `md?`, `from?` | New topic or tab. `from` is the parent topic it branched off. |
+| `step` | `id`, `in`, `kind`, `title`, plus kind fields, `md?` | One unit of explanation inside topic `in`. |
+| `ask` | `id`, `in`, `q`, `md?`, `opts`, `own` | A decision. See §6. |
+| `answer` | `d`, `c`, `note?` | The user's answer to decision `d`: code `c` and their own text in `note`. |
+| `status` | `in`, `s`, `note?` | `s`: `open`, `active`, `blocked`, `done`, `dropped`. `done` and `dropped` close the branch. |
+| `dep` | `in`, `on`, `note?` | Topic `in` depends on, or waits for, topic `on`. |
+| `focus` | `in` | Current topic. The viewer highlights its path from the root. |
+| `next` | `items:[{ref, why}]` | Your ranked to-do list for the overview. Replaces the previous list. |
+| `patch` | `id`, fields... | Correct an earlier topic, step or decision by id. Never edit old lines. |
+
+Step kinds:
+
+| `kind` | Extra fields | Use for |
+|---|---|---|
+| `note` | `md` | Short explanation. This is the default. |
+| `diagram` | `mermaid` | Flows, architecture, sequences (Mermaid syntax). The cheapest way to show structure. |
+| `compare` | `a:{h, md}`, `b:{h, md}` | Left/right: current vs. target state, option A vs. B. |
+| `code` | `code`, `lang` | Snippets. `lang:"diff"` colours `+` and `-` lines. |
+| `result` | `md` | Outcome or conclusion of a topic (highlighted). |
+
+`md` supports paragraphs, `- lists`, `1. lists`, `**bold**`, `` `code` ``, fenced code, `#` headings, `[text](url)` and `| pipe | tables |`.
+
+## 5. Token budget (mandatory)
+
+- **Append only.** Never re-read `state.js` whole; use `grep` (§4). Never rewrite `index.html` after setup.
+- **One idea per step.** `md` at most ~12 lines. Titles at most 6 words. Option labels at most 5 words. Each pro/con at most 8 words.
+- **Pictures over prose.** Prefer a `diagram`, `compare`, `diff` or table to a paragraph.
+- **No duplication.** Never repeat board content in chat. Don't restate earlier steps; link them (`see S4`).
+- **Batch.** Append all events of a turn in a single write.
+- Leave out speculation, filler and summaries of what you are about to do.
+
+## 6. Decisions and answer codes
+
+```js
+W({t:"ask", id:"D2", in:"T2", q:"How do we migrate existing hashes?", md:"optional context", opts:[
+  {c:"5b8d", h:"Rehash on login", md:"optional detail", pro:["no downtime","no batch job"], con:"inactive users keep old cost", rec:1},
+  {c:"9f1a", h:"Batch job", con:"impossible without plaintext"}
+], own:"2d6c"})
+```
+
+- Codes are **4 random lowercase hex characters**, unique on the board. They are not sequential and not derived from the text. Check that a code is unused: `grep -c '"5b8d"' .wallpainter/state.js` must print `0`.
+- Every `ask` has 2–4 `opts` and one `own` code. Mark at most one option `rec:1` (your recommendation).
+- Ask only what the user must decide. Don't turn something you can decide yourself into an `ask`; record it as a `note`.
+- **Reading answers.** The user replies in chat with codes, separated by commas or newlines:
+  - `5b8d`: choose this option.
+  - `5b8d - but log every rehash`: choose it with an amendment.
+  - `2d6c - use argon2 instead`: their own solution (the `own` code).
+  - Free text without a code: map it to the decision if that is unambiguous; otherwise ask back in one line.
+  - An unknown code: ask back in one line. Never guess.
+- Record each answer immediately: `W({t:"answer", d:"D2", c:"5b8d", note:"but log every rehash"})`. Then act on it. Never ask the same question again.
+
+## 7. Topics, branching, dependencies
+
+- **Branch** (new `topic` with `from`) when a sub-problem needs its own decision(s) or several steps **and** can be worked or decided separately. A detail belongs in a step, not a branch.
+- Set `status` `active` while working on a topic, `blocked` plus a `dep` when it waits for another topic, `done` when it is resolved (shown as a merge into its parent), and `dropped` (with `note`) when it is abandoned.
+- The first topic (`T1`) is the root problem and stays open until the whole task is done.
+- Close a topic with a `result` step before setting `done`.
+
+## 8. Focus and priority
+
+- Emit `focus` whenever the work moves to another topic.
+- Emit `next` at the end of every turn in which priorities changed. List 3–7 items (topics or decisions), most important first, each with a `why` of at most 10 words.
+- Rank by:
+  1. decisions that block other work, because the user's time is the bottleneck;
+  2. work that unblocks other topics;
+  3. risk;
+  4. effort.
+- The viewer greys out items that are answered or closed. Remove them at the next update.
+
+## 9. Chat reply format
+
+After updating the board, reply in the user's language with **at most 5 lines** and no headings:
+
+```
+WP · T2 bcrypt cost (new, from T1) · +3 steps
+D2 Migrate hashes?  5b8d Rehash on login (rec) | 9f1a Batch job | 2d6c - own
+Next: D2 → T3
+```
+
+- Line 1: the topic you worked on and what changed.
+- Lines 2–3: open decisions, each with its codes and short labels, so the user can answer without opening the board.
+- Last line: the next items.
+- Errors, commands the user must run, or a single short code block may follow if the user has to act on them. Everything else stays on the board.
+
+## 10. Every turn: checklist
+
+1. Parse answer codes in the user's message and append `answer` events.
+2. Do the work. Append new steps, topics, decisions, status changes and deps in one batch.
+3. Append `focus` if it changed, and `next` if priorities changed.
+4. Validate (`node --check`) if available.
+5. Reply in chat per §9.
+
+## 11. Example (one turn)
+
+User: "Login takes 4 s, fix it."
+
+```js
+W({t:"topic", id:"T1", title:"Login takes 4 s", md:"Target < 500 ms."})
+W({t:"step", id:"S1", in:"T1", kind:"diagram", title:"Current flow", mermaid:`flowchart LR
+  B[Browser] --> A[/login] --> H[bcrypt cost 14]
+  A --> D[(users, no index on email)]`})
+W({t:"step", id:"S2", in:"T1", kind:"note", title:"Profile (200 logins)", md:"| part | time |\n|---|---|\n| bcrypt | **2.9 s** |\n| user lookup | 0.9 s |\n| session write | 0.3 s |"})
+W({t:"topic", id:"T2", title:"bcrypt cost", from:"T1"})
+W({t:"topic", id:"T3", title:"Index users.email", from:"T1"})
+W({t:"dep", in:"T3", on:"T2", note:"measure after T2"})
+W({t:"ask", id:"D1", in:"T2", q:"Lower bcrypt cost to?", opts:[{c:"a3f9", h:"12", pro:"~0.7 s, OWASP ok", rec:1},{c:"7c2e", h:"10", con:"below OWASP minimum"}], own:"e01d"})
+W({t:"focus", in:"T2"})
+W({t:"next", items:[{ref:"D1", why:"blocks T2 and T3"},{ref:"T3", why:"cheap win once T2 is merged"}]})
+```
+
+Chat:
+
+```
+WP · T1 analysed, split into T2 bcrypt cost and T3 index
+D1 bcrypt cost?  a3f9 12 (rec) | 7c2e 10 | e01d - own
+Next: D1 → T3
+```
+
+## Appendix A — Viewer (index.html)
+
+Copy by command (§3). Do not read or modify.
+
+```html
+<!-- wallpainter:viewer:begin -->
+<!doctype html>
+<html lang="en" data-wp-version="1.0.0">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Wallpainter</title>
+<style>
+:root{--bg:#f5f5f7;--card:#fff;--fg:#1d1d1f;--mut:#6e6e73;--line:#d2d2d7;--acc:#0071e3;--ok:#248a3d;--bad:#d70015;--warn:#b25000;--soft:#eef4fd;--fresh:#fff4c2;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root{--bg:#000;--card:#1c1c1e;--fg:#f5f5f7;--mut:#98989d;--line:#38383a;--acc:#0a84ff;--ok:#30d158;--bad:#ff453a;--warn:#ff9f0a;--soft:#0b2540;--fresh:#3d3300}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;-webkit-text-size-adjust:100%}
+a{color:var(--acc);text-decoration:none;cursor:pointer}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.top{display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .8rem;padding:.6rem 16px 0}
+.top h1{font-size:1.05rem;margin:0}
+.crumb-path{color:var(--mut);font-size:.85rem}
+nav{display:flex;gap:2px;overflow-x:auto;padding:.5rem 16px 0;scrollbar-width:none}
+nav a{flex:none;display:flex;align-items:center;gap:.4rem;padding:.45rem .75rem;border-radius:9px 9px 0 0;color:var(--mut);font-size:.88rem;white-space:nowrap}
+nav a.on{background:var(--card);color:var(--fg);box-shadow:0 0 0 1px var(--line)}
+nav a.fresh::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--warn)}
+.dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--c)}
+.n{font-size:.72rem;background:var(--warn);color:#fff;border-radius:9px;padding:0 .4rem}
+#err{background:var(--bad);color:#fff;padding:.5rem 16px;font-size:.88rem}
+main{max-width:1100px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+h2{font-size:1rem;margin:0 0 .6rem}
+h3{font-size:.95rem;margin:0 0 .4rem}
+h4{font-size:.9rem;margin:.6rem 0 .2rem}
+p{margin:.3rem 0}
+ul,ol{margin:.3rem 0;padding-left:1.3rem}
+code,pre{font-family:var(--mono);font-size:.85em}
+:not(pre)>code{background:var(--soft);padding:0 .3em;border-radius:4px}
+pre{background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:.6rem .8rem;overflow-x:auto;margin:.4rem 0}
+table{border-collapse:collapse;margin:.4rem 0;font-size:.9rem;display:block;overflow-x:auto}
+th,td{border:1px solid var(--line);padding:.25rem .6rem;text-align:left}
+th{background:var(--soft)}
+.diff-add{color:var(--ok)}
+.diff-del{color:var(--bad)}
+.tag{font:600 .72rem var(--mono);padding:.05rem .35rem;border-radius:5px;background:var(--soft);color:var(--acc);margin-right:.35rem}
+.why{display:block;color:var(--mut);font-size:.85rem}
+.s{font-size:.75rem;font-weight:500;padding:.05rem .5rem;border-radius:9px;border:1px solid var(--c);color:var(--c);margin-left:.5rem;vertical-align:middle}
+.ov{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:760px){.ov{grid-template-columns:minmax(0,1fr)}.next{order:-1}}
+.tg{float:right;font-size:.8rem;font-weight:400;color:var(--mut)}
+#graph{position:relative;overflow-x:auto}
+#graph svg{position:absolute;left:0;top:0;overflow:visible}
+.row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.85rem;cursor:pointer;border-radius:6px}
+.row:hover{background:var(--soft)}
+.row.fresh{background:var(--fresh)}
+.next ol,.next ul{padding-left:1.2rem}
+.next li{margin:.45rem 0}
+.next li.stale{opacity:.45;text-decoration:line-through}
+.head .crumbs{font-size:.85rem;color:var(--mut);margin-bottom:.2rem}
+.deps{color:var(--mut);font-size:.88rem;margin-top:.3rem}
+.tl{list-style:none;margin:16px 0 0;padding:0 0 0 18px;border-left:2px solid var(--line)}
+.tl>li{position:relative;margin:0 0 14px}
+.tl>li::before{content:"";position:absolute;left:-26px;top:16px;width:10px;height:10px;border-radius:50%;background:var(--bg);border:2px solid var(--c,var(--mut))}
+.tl>li.mini{color:var(--mut);font-size:.88rem;padding-left:2px}
+.tl>li.mini::before{top:6px}
+.fresh>.card,.tl>li.mini.fresh{animation:glow 5s ease-out}
+@keyframes glow{from{background:var(--fresh)}}
+.kind{float:right;font-size:.7rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.result{border:2px solid var(--ok)}
+.cmp{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
+.cmp>div{border:1px solid var(--line);border-radius:8px;padding:.5rem .7rem}
+.cmp>div:last-child{border-color:var(--acc)}
+.cmp h4{margin-top:0}
+@media (max-width:600px){.cmp{grid-template-columns:minmax(0,1fr)}}
+.mermaid{white-space:pre;font:.8rem var(--mono);overflow-x:auto;text-align:center}
+.mermaid[data-processed]{white-space:normal}
+.ask{border:2px solid var(--warn)}
+.ask.answered{border:1px solid var(--line)}
+.q{font-weight:600}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:.6rem}
+.opt{border:1px solid var(--line);border-radius:10px;padding:.55rem .7rem}
+.opt.rec{border-color:var(--acc)}
+.answered .opt{opacity:.45}
+.answered .opt.chosen{opacity:1;border:2px solid var(--ok)}
+.badge{font-size:.7rem;padding:.05rem .4rem;border-radius:6px;background:var(--acc);color:#fff;margin-left:.4rem}
+.code{font:600 .85rem var(--mono);border:1px solid var(--line);background:var(--bg);color:var(--fg);border-radius:6px;padding:.1rem .45rem;cursor:pointer}
+.code.copied{background:var(--ok);border-color:var(--ok);color:#fff}
+.pc{list-style:none;padding:0;margin:.3rem 0 0;font-size:.85rem}
+.pc li::before{content:"+ ";color:var(--ok);font-weight:700}
+.pc li.con::before{content:"\2212  ";color:var(--bad)}
+.own{margin-top:.6rem;color:var(--mut);font-size:.88rem}
+.ans{margin-top:.6rem;color:var(--ok);font-weight:600}
+.empty{color:var(--mut);text-align:center;padding:3rem 0}
+</style>
+</head>
+<body>
+<header>
+  <div class="top"><h1 id="title">Wallpainter</h1><span class="crumb-path" id="path"></span></div>
+  <nav id="tabs"></nav>
+  <div id="err" hidden></div>
+</header>
+<main id="main"></main>
+<script>
+"use strict";
+const POLL_MS = 2000;
+const MERMAID_SRC = "https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js";
+const ROW = 28, LANE_GAP = 18, LANE_PAD = 12;
+const CLOSED = new Set(["done", "dropped"]);
+const STATUS_COLOR = { open: "var(--mut)", active: "var(--acc)", blocked: "var(--bad)", done: "var(--ok)", dropped: "var(--mut)" };
+const TEXT = {
+  en: { overview: "Overview", path: "Path", next: "Up next", openAsks: "Open decisions", none: "Nothing open.", rec: "recommended", own: "your own solution", chosen: "Chosen", waits: "Waits for", blocks: "Blocks", branched: "New topic", allSteps: "all steps", missing: "state.js not found next to index.html", broken: "state.js has an error - showing the last valid state", empty: "No events yet. The agent appends them to state.js.", status: { open: "open", active: "active", blocked: "blocked", done: "done", dropped: "dropped" } },
+  de: { overview: "Übersicht", path: "Pfad", next: "Als Nächstes", openAsks: "Offene Entscheidungen", none: "Nichts offen.", rec: "empfohlen", own: "eigene Lösung", chosen: "Gewählt", waits: "Wartet auf", blocks: "Blockiert", branched: "Neues Thema", allSteps: "alle Schritte", missing: "state.js fehlt neben index.html", broken: "state.js enthält einen Fehler - letzter gültiger Stand wird angezeigt", empty: "Noch keine Einträge. Der Agent schreibt sie nach state.js.", status: { open: "offen", active: "aktiv", blocked: "blockiert", done: "erledigt", dropped: "verworfen" } },
+};
+
+const byId = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const asList = (v) => (v == null ? [] : Array.isArray(v) ? v : [v]);
+const short = (s, n = 26) => (String(s).length > n ? String(s).slice(0, n - 1) + "…" : String(s));
+const store = (k, v) => { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } };
+const recall = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+
+let model = fold([]);
+let showAll = recall("wp-all") === "1";
+let seen = 0;
+let lastKey = "";
+let buffer = [];
+let loading = false;
+let loadError = "";
+let mermaidState = "idle";
+const tx = () => TEXT[model.lang] || TEXT.en;
+const isFresh = (e) => e._i >= seen;
+
+window.W = (event) => buffer.push(event);
+window.addEventListener("error", (ev) => {
+  if (loading) loadError = ev.lineno ? `${ev.message} (state.js:${ev.lineno})` : tx().broken;
+});
+
+/* ---------- state loading ---------- */
+function poll() {
+  if (document.hidden || loading) return;
+  buffer = []; loadError = ""; loading = true;
+  const script = document.createElement("script");
+  script.src = `state.js?v=${Date.now()}`;
+  script.onload = () => finishLoad(script, "");
+  script.onerror = () => finishLoad(script, tx().missing);
+  document.head.appendChild(script);
+}
+
+function finishLoad(script, missing) {
+  script.remove();
+  loading = false;
+  const error = missing || loadError;
+  byId("err").hidden = !error;
+  byId("err").textContent = error;
+  if (error) return;
+  const key = JSON.stringify(buffer);
+  if (key === lastKey) return;
+  seen = lastKey ? model.count : buffer.length;
+  lastKey = key;
+  model = fold(buffer);
+  const y = window.scrollY;
+  render();
+  window.scrollTo(0, y);
+}
+
+/* ---------- event folding ---------- */
+function fold(events) {
+  const m = { title: "Wallpainter", lang: "en", count: events.length, topics: new Map(), asks: new Map(), items: new Map(), deps: [], next: [], focus: null, rows: [] };
+  const upsertTopic = (fields) => {
+    const t = m.topics.get(fields.id) || { s: "open", log: [], kids: [], _i: -1 };
+    Object.assign(t, fields);
+    m.topics.set(t.id, t); m.items.set(t.id, t);
+    return t;
+  };
+  const topic = (id) => m.topics.get(id) || upsertTopic({ id, title: id });
+
+  events.forEach((raw, i) => {
+    const e = { ...raw, _i: i };
+    switch (e.t) {
+      case "board": m.title = e.title || m.title; m.lang = e.lang || m.lang; break;
+      case "topic": {
+        const { t: _type, ...fields } = e;
+        upsertTopic(fields);
+        m.rows.push({ e, topic: e.id });
+        if (e.from) { const parent = topic(e.from); parent.kids.push(e.id); parent.log.push({ t: "branch", ref: e.id, _i: i }); }
+        m.focus = m.focus || e.id;
+        break;
+      }
+      case "step": topic(e.in).log.push(e); if (e.id) m.items.set(e.id, e); m.rows.push({ e, topic: e.in, minor: true }); break;
+      case "ask": e.answer = null; topic(e.in).log.push(e); m.asks.set(e.id, e); m.items.set(e.id, e); m.rows.push({ e, topic: e.in }); break;
+      case "answer": { const ask = m.asks.get(e.d); if (ask) { ask.answer = e; m.rows.push({ e, topic: ask.in }); } break; }
+      case "status": topic(e.in).s = e.s; topic(e.in).log.push(e); m.rows.push({ e, topic: e.in }); break;
+      case "dep": topic(e.on); topic(e.in).log.push(e); m.deps.push(e); m.rows.push({ e, topic: e.in }); break;
+      case "focus": topic(e.in); m.focus = e.in; break;
+      case "next": m.next = asList(e.items); break;
+      case "patch": { const target = m.items.get(e.id); if (target) { const { t: _t, id: _id, _i: _x, ...rest } = e; Object.assign(target, rest); } break; }
+    }
+  });
+  return m;
+}
+
+function pathOf(id) {
+  const path = [];
+  for (let t = model.topics.get(id); t && !path.includes(t.id); t = model.topics.get(t.from)) path.unshift(t.id);
+  return path;
+}
+
+/* ---------- text rendering ---------- */
+function autoLink(html) {
+  return html.split(/(<[^>]+>)/).map((part) => (part.startsWith("<") ? part
+    : part.replace(/\b([TDS]\d+)\b/g, (id) => (model.items.has(id) ? `<a data-go="${id}">${id}</a>` : id)))).join("");
+}
+
+function inline(text) {
+  return esc(text).split("`").map((part, i) => (i % 2 ? `<code>${part}</code>` : autoLink(part
+    .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+    .replace(/\[([^\]]+)\]\(((?:https?:\/\/|\.{0,2}\/)[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')))).join("");
+}
+
+function codeBlock(code, lang) {
+  const lines = String(code ?? "").split("\n").map((line) => {
+    const cls = lang === "diff" ? (line.startsWith("+") ? "diff-add" : line.startsWith("-") ? "diff-del" : "") : "";
+    return cls ? `<span class="${cls}">${esc(line)}</span>` : esc(line);
+  });
+  return `<pre><code>${lines.join("\n")}</code></pre>`;
+}
+
+function table(lines) {
+  const rows = lines.filter((l) => !/^[\s|:-]+$/.test(l))
+    .map((l) => l.trim().replace(/^\||\|$/g, "").split("|").map((c) => inline(c.trim())));
+  const [head = [], ...body] = rows;
+  return `<table><tr>${head.map((c) => `<th>${c}</th>`).join("")}</tr>${body.map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</table>`;
+}
+
+function md(src) {
+  if (!src) return "";
+  const out = [];
+  let para = [], list = null, code = null, rows = [];
+  const flushPara = () => { if (para.length) out.push(`<p>${inline(para.join(" "))}</p>`); para = []; };
+  const closeList = () => { if (list) out.push(`</${list}>`); list = null; };
+  const flushTable = () => { if (rows.length) out.push(table(rows)); rows = []; };
+  for (const line of String(src).split("\n")) {
+    if (code) {
+      if (line.startsWith("```")) { out.push(codeBlock(code.lines.join("\n"), code.lang)); code = null; } else code.lines.push(line);
+      continue;
+    }
+    if (line.trim().startsWith("|")) { flushPara(); closeList(); rows.push(line); continue; }
+    flushTable();
+    const fence = line.match(/^```(\w*)/);
+    const head = line.match(/^#{1,4}\s+(.*)/);
+    const item = line.match(/^\s*([-*]|\d+[.)])\s+(.*)/);
+    if (fence) { flushPara(); closeList(); code = { lang: fence[1], lines: [] }; }
+    else if (head) { flushPara(); closeList(); out.push(`<h4>${inline(head[1])}</h4>`); }
+    else if (item) {
+      flushPara();
+      const tag = /\d/.test(item[1]) ? "ol" : "ul";
+      if (list !== tag) { closeList(); out.push(`<${tag}>`); list = tag; }
+      out.push(`<li>${inline(item[2])}</li>`);
+    }
+    else if (!line.trim()) { flushPara(); closeList(); }
+    else { closeList(); para.push(line); }
+  }
+  if (code) out.push(codeBlock(code.lines.join("\n"), code.lang));
+  flushPara(); closeList(); flushTable();
+  return out.join("");
+}
+
+const link = (id) => `<a data-go="${esc(id)}">${esc(id)}</a>`;
+const statusChip = (s) => `<span class="s" style="--c:${STATUS_COLOR[s] || "var(--mut)"}">${esc(tx().status[s] || s)}</span>`;
+
+/* ---------- views ---------- */
+function render() {
+  const [view] = location.hash.slice(1).split(":");
+  const current = model.topics.has(view) ? view : "overview";
+  document.documentElement.lang = model.lang;
+  document.title = `${model.title} · Wallpainter`;
+  byId("title").textContent = model.title;
+  const focus = model.topics.get(model.focus);
+  byId("path").textContent = focus ? `${tx().path}: ${pathOf(focus.id).join(" › ")} · ${focus.title}` : "";
+  byId("tabs").innerHTML = renderTabs(current);
+  byId("main").innerHTML = current === "overview" ? renderOverview() : renderTopic(model.topics.get(current));
+  runMermaid();
+}
+
+function renderTabs(current) {
+  const tab = (ref, label, fresh) => `<a href="#${esc(ref)}" class="${ref === current ? "on" : ""}${fresh ? " fresh" : ""}">${label}</a>`;
+  const topics = [...model.topics.values()].map((t) => {
+    const open = t.log.filter((e) => e.t === "ask" && !e.answer).length;
+    const label = `<span class="dot" style="--c:${STATUS_COLOR[t.s] || "var(--mut)"}"></span>${esc(t.id)} ${esc(short(t.title))}${open ? ` <span class="n">${open}</span>` : ""}`;
+    return tab(t.id, label, topicIsFresh(t));
+  });
+  return tab("overview", esc(tx().overview), false) + topics.join("");
+}
+const topicIsFresh = (t) => isFresh(t) || t.log.some((e) => isFresh(e) || (e.answer && isFresh(e.answer)));
+
+function renderOverview() {
+  if (!model.count) return `<p class="empty">${esc(tx().empty)}</p>`;
+  const openAsks = [...model.asks.values()].filter((a) => !a.answer);
+  const asks = openAsks.length ? `<ul>${openAsks.map((a) => `<li><a data-go="${esc(a.id)}"><span class="tag">${esc(a.id)}</span>${inline(a.q)}</a><span class="why">${[...asList(a.opts).map((o) => esc(o.c)), a.own ? `${esc(a.own)} -` : ""].filter(Boolean).join(" · ")}</span></li>`).join("")}</ul>` : `<p class="why">${esc(tx().none)}</p>`;
+  return `<div class="ov">
+    <section class="card"><h2>${esc(tx().path)}<label class="tg"><input type="checkbox" id="all"${showAll ? " checked" : ""}> ${esc(tx().allSteps)}</label></h2><div id="graph">${renderGraph()}</div></section>
+    <aside class="card next"><h2>${esc(tx().next)}</h2>${renderNext()}<h2 style="margin-top:1rem">${esc(tx().openAsks)}</h2>${asks}</aside>
+  </div>`;
+}
+
+function renderNext() {
+  if (!model.next.length) return `<p class="why">${esc(tx().none)}</p>`;
+  return `<ol>${model.next.map(({ ref, why }) => {
+    const item = model.items.get(ref);
+    const stale = item && (item.answer || CLOSED.has(item.s));
+    return `<li data-ref="${esc(ref)}"${stale ? ' class="stale"' : ""}><a data-go="${esc(ref)}"><span class="tag">${esc(ref)}</span>${inline(item ? item.q || item.title || "" : "")}</a><span class="why">${inline(why || "")}</span></li>`;
+  }).join("")}</ol>`;
+}
+
+function layoutLanes(rows) {
+  const span = new Map();
+  rows.forEach((r, y) => { const s = span.get(r.topic); if (s) s.end = y; else span.set(r.topic, { start: y, end: y }); });
+  const laneEnds = [];
+  for (const [id, s] of span) {
+    const t = model.topics.get(id);
+    if (!CLOSED.has(t.s)) s.end = rows.length - 1;
+    s.merge = CLOSED.has(t.s) && span.has(t.from);
+    let lane = laneEnds.findIndex((end) => end < s.start);
+    if (lane < 0) lane = laneEnds.length;
+    laneEnds[lane] = s.end + (s.merge ? 1 : 0);
+    s.lane = lane;
+  }
+  return { span, laneCount: Math.max(laneEnds.length, 1) };
+}
+
+function renderGraph() {
+  const rows = model.rows.filter((r) => showAll || !r.minor);
+  const { span, laneCount } = layoutLanes(rows);
+  const onPath = new Set(pathOf(model.focus));
+  const x = (id) => LANE_PAD + span.get(id).lane * LANE_GAP;
+  const cy = (y) => y * ROW + ROW / 2;
+  const width = LANE_PAD * 2 + (laneCount - 1) * LANE_GAP;
+  const parts = [];
+
+  for (const [id, s] of span) {
+    const t = model.topics.get(id);
+    const color = onPath.has(id) ? "var(--acc)" : STATUS_COLOR[t.s] || "var(--mut)";
+    const stroke = `stroke="${color}" stroke-width="${onPath.has(id) ? 3 : 2}" fill="none"${t.s === "dropped" ? ' stroke-dasharray="4 3"' : ""}`;
+    const px = span.has(t.from) ? x(t.from) : null;
+    const lx = x(id), y0 = cy(s.start), y1 = cy(s.end);
+    let d = px !== null && s.start > 0
+      ? `M${px} ${y0 - ROW} C${px} ${y0 - ROW / 2} ${lx} ${y0 - ROW / 2} ${lx} ${y0} V${y1}`
+      : `M${lx} ${y0} V${y1}`;
+    if (s.merge) d += ` C${lx} ${y1 + ROW / 2} ${px} ${y1 + ROW / 2} ${px} ${y1 + ROW}`;
+    parts.push(`<path class="lane" d="${d}" ${stroke}/>`);
+  }
+
+  rows.forEach((r, y) => {
+    const e = r.e, cx = x(r.topic), c = cy(y);
+    if (e.t === "dep" && span.has(e.on)) {
+      parts.push(`<path d="M${cx} ${c} H${x(e.on)}" stroke="var(--bad)" stroke-width="1.5" stroke-dasharray="3 3" marker-end="url(#arrow)"/>`);
+    }
+    const fill = { topic: "var(--card)", ask: e.answer ? "var(--ok)" : "var(--warn)", answer: "var(--ok)", status: STATUS_COLOR[e.s], dep: "var(--card)" }[e.t] || "var(--mut)";
+    const stroke = onPath.has(r.topic) ? "var(--acc)" : STATUS_COLOR[model.topics.get(r.topic).s] || "var(--mut)";
+    parts.push(`<circle cx="${cx}" cy="${c}" r="${r.minor ? 3 : 5}" fill="${fill}" stroke="${stroke}" stroke-width="2"/>`);
+  });
+
+  const marker = `<defs><marker id="arrow" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L8 4L0 8z" fill="var(--bad)"/></marker></defs>`;
+  const svg = `<svg width="${width}" height="${(rows.length + 1) * ROW}" aria-hidden="true">${marker}${parts.join("")}</svg>`;
+  const labels = rows.map((r) => `<div class="row${isFresh(r.e) ? " fresh" : ""}" data-go="${esc(rowTarget(r))}" style="height:${ROW}px;line-height:${ROW}px;padding-left:${width + 6}px"><span class="tag">${esc(r.topic)}</span>${rowLabel(r.e)}</div>`);
+  return svg + labels.join("") + `<div style="height:${ROW}px"></div>`;
+}
+
+function rowTarget({ e, topic }) {
+  if (e.t === "ask") return e.id;
+  if (e.t === "answer") return e.d;
+  if (e.t === "step" && e.id) return e.id;
+  return topic;
+}
+
+function rowLabel(e) {
+  const t = tx();
+  switch (e.t) {
+    case "topic": return `⎇ ${esc(e.title)}`;
+    case "step": return esc(e.title || e.kind || "");
+    case "ask": return `? ${esc(e.q)}`;
+    case "answer": {
+      const option = asList(model.asks.get(e.d)?.opts).find((o) => o.c === e.c);
+      return `✓ ${esc(e.d)} → ${esc(e.c || "")} ${esc(option ? option.h : e.note || "")}`;
+    }
+    case "status": return `${esc(t.status[e.s] || e.s)}${e.note ? ` – ${esc(e.note)}` : ""}`;
+    case "dep": return `${esc(t.waits)} ${esc(e.on)}`;
+    default: return "";
+  }
+}
+
+function renderTopic(t) {
+  const words = tx();
+  const waits = model.deps.filter((d) => d.in === t.id).map((d) => link(d.on));
+  const blocks = model.deps.filter((d) => d.on === t.id).map((d) => link(d.in));
+  const deps = [waits.length ? `${esc(words.waits)}: ${waits.join(", ")}` : "", blocks.length ? `${esc(words.blocks)}: ${blocks.join(", ")}` : ""].filter(Boolean).join(" · ");
+  const crumbs = pathOf(t.id).map((id) => `${link(id)} ${esc(short(model.topics.get(id).title, 18))}`).join(" › ");
+  return `<div class="card head"><div class="crumbs">${crumbs}</div><h2>${esc(t.title)}${statusChip(t.s)}</h2>${md(t.md)}${deps ? `<div class="deps">${deps}</div>` : ""}</div>
+    <ol class="tl">${t.log.map(renderItem).join("")}</ol>`;
+}
+
+function renderItem(e) {
+  const words = tx();
+  const fresh = isFresh(e) || (e.answer && isFresh(e.answer)) ? " fresh" : "";
+  const mini = (html, color, cls = "") => `<li class="mini ${cls}${fresh}" style="--c:${color}">${html}</li>`;
+  switch (e.t) {
+    case "branch": return mini(`⎇ ${esc(words.branched)}: ${link(e.ref)} ${esc(model.topics.get(e.ref)?.title || "")}`, "var(--acc)", "branch");
+    case "status": return mini(`${statusChip(e.s)}${e.note ? ` ${inline(e.note)}` : ""}`, STATUS_COLOR[e.s] || "var(--mut)");
+    case "dep": return mini(`${esc(words.waits)} ${link(e.on)}${e.note ? ` – ${inline(e.note)}` : ""}`, "var(--bad)");
+    case "ask": return `<li class="${fresh}" style="--c:var(--warn)">${renderAsk(e)}</li>`;
+    default: return `<li class="${fresh}"${e.id ? ` id="${esc(e.id)}"` : ""} style="--c:${e.kind === "result" ? "var(--ok)" : "var(--acc)"}"><div class="card${e.kind === "result" ? " result" : ""}"><span class="kind">${esc(e.kind || "note")}</span>${e.title ? `<h3>${esc(e.title)}</h3>` : ""}${renderBody(e)}</div></li>`;
+  }
+}
+
+function renderBody(e) {
+  switch (e.kind) {
+    case "compare": return `<div class="cmp">${[e.a, e.b].map((side) => `<div><h4>${esc(side?.h || "")}</h4>${md(side?.md)}</div>`).join("")}</div>${md(e.md)}`;
+    case "diagram": return `<div class="mermaid">${esc(e.mermaid)}</div>${md(e.md)}`;
+    case "code": return codeBlock(e.code, e.lang) + md(e.md);
+    default: return md(e.md);
+  }
+}
+
+function renderAsk(a) {
+  const words = tx();
+  const chosen = a.answer?.c;
+  const prosCons = (o) => {
+    const items = [...asList(o.pro).map((v) => `<li>${inline(v)}</li>`), ...asList(o.con).map((v) => `<li class="con">${inline(v)}</li>`)];
+    return items.length ? `<ul class="pc">${items.join("")}</ul>` : "";
+  };
+  const opts = asList(a.opts).map((o) => `<div class="opt${o.rec ? " rec" : ""}${o.c === chosen ? " chosen" : ""}"><button class="code" data-copy="${esc(o.c)}">${esc(o.c)}</button> <b>${esc(o.h || "")}</b>${o.rec ? `<span class="badge">${esc(words.rec)}</span>` : ""}${md(o.md)}${prosCons(o)}</div>`).join("");
+  const own = a.own ? `<div class="own"><button class="code" data-copy="${esc(a.own)} - ">${esc(a.own)}</button> - ${esc(words.own)}</div>` : "";
+  const answer = a.answer ? `<div class="ans">✓ ${esc(words.chosen)}: ${esc(a.answer.c || "")}${a.answer.note ? ` – ${inline(a.answer.note)}` : ""}</div>` : "";
+  return `<div class="card ask${a.answer ? " answered" : ""}" id="${esc(a.id)}"><div class="q"><span class="tag">${esc(a.id)}</span>${inline(a.q)}</div>${md(a.md)}<div class="opts">${opts}</div>${own}${answer}</div>`;
+}
+
+function runMermaid() {
+  const nodes = [...document.querySelectorAll(".mermaid:not([data-processed])")];
+  if (!nodes.length || mermaidState === "loading" || mermaidState === "failed") return;
+  if (mermaidState === "ready") { window.mermaid.run({ nodes }).catch(() => {}); return; }
+  mermaidState = "loading";
+  const script = document.createElement("script");
+  script.src = MERMAID_SRC;
+  script.onload = () => {
+    mermaidState = "ready";
+    window.mermaid.initialize({ startOnLoad: false, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default" });
+    runMermaid();
+  };
+  script.onerror = () => { mermaidState = "failed"; };
+  document.head.appendChild(script);
+}
+
+/* ---------- interaction ---------- */
+function goTo(ref) {
+  const item = model.items.get(ref);
+  if (!item) return;
+  const topicId = model.topics.has(ref) ? ref : item.in;
+  const hash = topicId === ref ? `#${topicId}` : `#${topicId}:${ref}`;
+  if (location.hash === hash) scrollToAnchor(); else location.hash = hash;
+}
+
+function scrollToAnchor() {
+  const anchor = location.hash.split(":")[1];
+  const el = anchor && byId(anchor);
+  if (el) el.scrollIntoView({ block: "center" }); else window.scrollTo(0, 0);
+}
+
+function copyCode(button) {
+  const done = () => { button.classList.add("copied"); setTimeout(() => button.classList.remove("copied"), 900); };
+  navigator.clipboard?.writeText(button.dataset.copy).then(done, () => {});
+}
+
+document.addEventListener("click", (ev) => {
+  const target = ev.target.closest("[data-go],[data-copy]");
+  if (!target) return;
+  ev.preventDefault();
+  if (target.dataset.go) goTo(target.dataset.go); else copyCode(target);
+});
+document.addEventListener("change", (ev) => {
+  if (ev.target.id !== "all") return;
+  showAll = ev.target.checked;
+  store("wp-all", showAll ? "1" : "");
+  render();
+});
+window.addEventListener("hashchange", () => { render(); scrollToAnchor(); });
+document.addEventListener("visibilitychange", poll);
+poll();
+setInterval(poll, POLL_MS);
+</script>
+</body>
+</html>
+<!-- wallpainter:viewer:end -->
+```
