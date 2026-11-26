@@ -1,6 +1,6 @@
 # Wallpainter
 
-**Stop the wall of text.** Wallpainter is a single instruction file (`wallpainter.skill`) that you hand to a coding agent (Claude Code, Codex, Gemini CLI, Antigravity, Cursor, ...). It tells the agent to explain its work on a visual, local HTML board instead of in long chat messages.
+**Stop the wall of text.** Wallpainter is an [Agent Skill](https://agentskills.io) (`skills/wallpainter/`) that you hand to a coding agent (Claude Code, Codex, Gemini CLI, Antigravity, Cursor, ...). It tells the agent to explain its work on a visual, local HTML board instead of in long chat messages.
 
 [![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
 
@@ -69,60 +69,72 @@ Closing a topic also closes its open sub-topics. Its open decisions disappear, a
 
 ## Installation
 
-Pick one of two ways and add its block to your agent's instruction file: `CLAUDE.md` (Claude Code), `AGENTS.md` (Codex and others) or `GEMINI.md` (Gemini CLI). Use the global file to enable it everywhere, or a project file for one repository.
+Wallpainter is a folder with two files: `SKILL.md` (the protocol) and `assets/index.html` (the viewer). Pick one of three ways:
 
-| | Local copy | GitHub URL |
-|---|---|---|
-| Setup | download once | nothing to download |
-| Session start | offline, no network call | one `curl` per session |
-| Updates | download again | change the tag in the block |
+| | 1. Instruction file | 2. Claude Code skill | 3. Antigravity skill |
+|---|---|---|---|
+| Works with | any agent | Claude Code | Google Antigravity |
+| Protocol in context | every session | only when a board is needed | only when a board is needed |
+| You add | folder + block in `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` | folder + one-line rule in `CLAUDE.md` | folder + one-line rule |
 
-Both pin a release (`v1.3.3`), so changes in this repository never reach your sessions unannounced. To update, replace the version with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
+All commands pin a release (`v2.0.0`), so changes in this repository never reach your sessions unannounced. To update, run the download again with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
 
-### Option A: local copy
+### 1. Instruction file (any agent)
 
 ```bash
-mkdir -p ~/.wallpainter && curl -fsSL https://raw.githubusercontent.com/bausi2k/wallpainter/v1.3.3/wallpainter.skill -o ~/.wallpainter/wallpainter.skill
+D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.0.0/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
 ```
 
 ```markdown
 ## Communication (Wallpainter)
-Follow the Wallpainter protocol. At session start, load it (never read past "## Appendix A"):
-`sed -n '1,/^## Appendix A/p' ~/.wallpainter/wallpainter.skill`
-Skill source for the viewer setup (§3): `~/.wallpainter/wallpainter.skill`
+Follow the Wallpainter protocol in `~/.wallpainter/SKILL.md`; read it at session start.
 ```
 
-### Option B: GitHub URL
+Without a download, point the block at the URLs instead and load them with `curl` (not a web-fetch tool, which may summarise the file): `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.0.0/skills/wallpainter/SKILL.md` and `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.0.0/skills/wallpainter/assets/index.html`.
+
+### 2. Claude Code skill
+
+```bash
+D=~/.claude/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.0.0/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
+```
+
+Skills load on demand, but Wallpainter is a way of communicating, so add a one-line rule to `~/.claude/CLAUDE.md`:
 
 ```markdown
 ## Communication (Wallpainter)
-Follow the Wallpainter protocol. At session start, load it (never read past "## Appendix A"):
-`curl -fsSL https://raw.githubusercontent.com/bausi2k/wallpainter/v1.3.3/wallpainter.skill | sed -n '1,/^## Appendix A/p'`
-Skill source for the viewer setup (§3): https://raw.githubusercontent.com/bausi2k/wallpainter/v1.3.3/wallpainter.skill
+For any reply longer than ~8 lines, with a decision between options, or with several sub-problems: use the `wallpainter` skill (board instead of chat).
 ```
 
-Use `curl`, not a web-fetch tool. Some agents summarise fetched pages, which drops protocol details; `curl` returns the file verbatim.
+### 3. Google Antigravity skill (not tested yet)
+
+Copy the folder into Antigravity's skills directory: per project `.agents/skills/wallpainter/`, or the global skills folder named in the [Antigravity docs](https://antigravity.google/docs/skills). Then add the same one-line rule as an Antigravity rule (for example `.agents/rules/wallpainter.md`).
+
+```bash
+D=.agents/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.0.0/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
+```
 
 ### What happens next
 
-On first use in a project, the agent creates `.wallpainter/`, extracts the viewer from the skill file with a shell command, adds `.wallpainter/` to `.gitignore` and opens the board.
+On first use in a project, the agent creates `.wallpainter/`, copies the viewer there, adds `.wallpainter/` to `.gitignore` and opens the board in your system browser.
 
-> `sed` stops at Appendix A, so the ~650-line viewer never enters the context. Avoid `@`-importing the whole file in `CLAUDE.md` for the same reason.
+### Upgrading from 1.x
+
+Version 2.0.0 replaces the single file `wallpainter.skill` with the skill folder. Download the folder with one of the commands above, and in your instruction file replace `wallpainter.skill` with `SKILL.md` (way 1) or with the one-line rule (way 2). Existing boards keep working. Installations pinned to `v1.3.x` keep working too.
 
 ## Token efficiency
 
 Wallpainter is designed to cost fewer tokens than a wall of text:
 
-- **Data, not markup.** The agent appends compact events (`W({t:"step", ...})`) to `.wallpainter/state.js`. The viewer is written once by `awk`, without passing through the model.
+- **Data, not markup.** The agent appends compact events (`W({t:"step", ...})`) to `.wallpainter/state.js`. The viewer is copied once with `cp`, without passing through the model.
 - **Append-only.** The agent never re-reads or rewrites the board; it looks things up with `grep`.
 - **Pictures over prose.** Mermaid diagrams, compare cards and diffs replace paragraphs.
-- **Protocol only.** Only the protocol part (~225 lines) is loaded into context.
+- **Protocol on demand.** As a skill (ways 2 and 3), only its name and description sit in the context until a board is needed. Through an instruction file (way 1), the protocol (~230 lines) is loaded every session.
 
 ## How it works
 
 ```
 .wallpainter/
-├── index.html   # static viewer (from wallpainter.skill, Appendix A)
+├── index.html   # static viewer (copied from skills/wallpainter/assets/index.html)
 └── state.js     # append-only event log written by the agent
 ```
 
@@ -130,14 +142,15 @@ The viewer polls `state.js` every 2 seconds. It works from `file://` without a s
 
 **Light and dark mode**: the board follows your system setting. The `◐` button in the header cycles through Auto, Light and Dark; the browser remembers your choice.
 
-The event format is documented in `wallpainter.skill`, section 4.
+The event format is documented in `skills/wallpainter/SKILL.md`, section 4.
 
 ## Repository
 
 | File | Purpose |
 |---|---|
 | `README.md` | This document. |
-| `wallpainter.skill` | Instructions for the agent, with the embedded viewer. |
+| `skills/wallpainter/SKILL.md` | The protocol for the agent (Agent Skills format). |
+| `skills/wallpainter/assets/index.html` | The board viewer, copied into each project. |
 | `LICENSE` | PolyForm Noncommercial 1.0.0. |
 
 ## License
