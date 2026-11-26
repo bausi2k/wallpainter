@@ -6,207 +6,80 @@ license: PolyForm-Noncommercial-1.0.0
 
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 2.6.1 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 3.0.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
-> Files: this `SKILL.md` (the protocol) and `assets/index.html` (the viewer). Copy the viewer into each project with the command in §3; never read it into context.
+> Files: this `SKILL.md` (the core), `references/` (read on demand), `scripts/wp.sh` and `assets/index.html` (copied into each project, never read into context). Setup: `references/setup.md`.
 
 ## 0. Rules at a glance
 
-1. Never answer with a wall of text. Explanations, analyses, comparisons and decisions go to the **board**; the chat gets at most 5 lines (§9). **Hard limit:** no bullets, tables, headings or summaries in chat, ever.
-2. The board is one append-only event log, `.wallpainter/state.js`. You only **append** events (§4). You never rewrite or re-read it whole.
-3. Every decision has options with random 4-hex **answer codes**, plus an **own** code for the user's own solution (§6).
-4. Every sub-problem that needs its own decisions or several steps gets its own **topic** (one tab), linked to its parent (§7). Every topic has a **close code** and a **question code**; the user closes the topic or asks about it by typing them (§6).
-5. After each turn, you keep the **focus** (current path) and the ranked **next** list up to date (§8).
+1. Never answer with a wall of text. Explanations, analyses, comparisons and decisions go to the **board**; the chat gets at most 5 lines (§7). **Hard limit:** no bullets, tables, headings or summaries in chat, ever.
+2. The board is one append-only event log, `.wallpainter/state.js`. You only **append** events (§2). You never rewrite or re-read it whole.
+3. Every decision has options with random 4-hex **answer codes** plus an **own** code (references/codes.md).
+4. Every sub-problem that needs its own decisions or several steps gets its own **topic** (one tab), linked to its parent (§5). Every topic has a **close code** and a **question code**; the user closes the topic or asks about it by typing them (references/codes.md).
+5. After each turn, you keep the **focus** (current path) and the ranked **next** list up to date (§6).
 
-## 1. Purpose
-
-Linear chat hides structure: one problem turns into three, decisions get buried, and the user loses track of which path is current. Wallpainter moves that structure into a local HTML board:
-
-- **Overview tab**: a **structure** tree (root problem → sub-topics, open decisions as ◆ leaves, "waits for" arcs, current path in bold, unblocked leaf topics marked *ready*) with a git-style **history** graph as the alternative view. Beside it: your ranked list of what to do or decide next.
-- **One tab per topic**: a top-to-bottom timeline of steps (notes, diagrams, before/after comparisons, diffs, results) and decision cards.
-
-The viewer is static and renders whatever is in `state.js`. You write data, never markup.
-
-## 2. When to use the board
+## 1. When to use the board
 
 Use it when your reply would exceed ~8 lines, contains a decision with 2+ options, splits into sub-problems, or compares states or alternatives.
 
-Answer in chat as usual when the reply is short (a fact, a yes/no, a one-line confirmation) or the user typed `wp off`.
-
-When unsure whether the reply fits in 5 lines, use the board: a long chat reply is never the fallback.
+Short replies (a fact, a yes/no, a confirmation) stay in chat, as does everything after `wp off`. When unsure whether a reply fits in 5 lines, use the board: a long chat reply is never the fallback.
 
 User commands (case-insensitive, anywhere in a message):
 
 | Command | Effect |
 |---|---|
 | `wp off` / `wp on` | Pause or resume the protocol for this session. |
-| `wp` | Reprint open decisions and the next list in chat (§9 format). |
-| `wp open` | Open the board in the system browser (§3, step 4). |
+| `wp` | Reprint open decisions and the next list in chat (§7 format). |
+| `wp open` | Open the board in the system browser (references/setup.md, step 4). |
 | `wp new <title>` | Archive the board (rename `state.js` to `state-<YYYYMMDD-HHMM>.js`), then start a fresh one. |
 | `focus T3` | Make T3 the current topic. |
 
-## 3. Setup (once per project)
+## 2. Events (cheat sheet)
 
-Run only if `.wallpainter/index.html` is missing, or if its `data-wp-version` is older than this skill's version.
-
-1. Copy the viewer without loading it into context. `<skill-dir>` is the folder that contains this `SKILL.md`:
-   ```sh
-   mkdir -p .wallpainter
-   cp <skill-dir>/assets/index.html .wallpainter/index.html
-   # or, if you loaded this skill from a URL:
-   curl -fsSL <raw-url>/skills/wallpainter/assets/index.html -o .wallpainter/index.html
-   ```
-   Without shell access, copy `assets/index.html` unchanged.
-2. Create `.wallpainter/state.js`:
-   ```js
-   // Wallpainter event log - append only. Format: wallpainter SKILL.md section 4.
-   W({t:"board", title:"<short goal>", lang:"<user language, e.g. de>"})
-   ```
-3. Add `.wallpainter/` to `.gitignore` (default). Say so in one chat line; if the user wants the board versioned, remove the entry.
-4. Open the board once in the user's **system browser**: `open .wallpainter/index.html` on macOS, `xdg-open` on Linux, `start` on Windows. It reloads `state.js` every 2 s by itself.
-   Never open it via `file://` in an embedded agent browser (for example a browser pane of your own app). Such panes often show static snapshots or `data:` copies that cannot reach `state.js`, so the board stays empty. If the user wants it inside such a pane, serve it locally and open `http://localhost:8766`:
-   ```sh
-   python3 -m http.server 8766 --bind 127.0.0.1 --directory .wallpainter
-   ```
-
-## 4. Event log format
-
-`state.js` is plain JavaScript: one `W({...})` call per event, in chronological order. Keys may be unquoted. For multi-line text use template literals (`` `...` ``) and escape `` ` `` and `${` inside them.
-
-Append with one shell heredoc per turn (quoted delimiter, so nothing is interpolated):
+Append all events of a turn with one call; it checks syntax and duplicate codes. Fields, kinds and an example: `references/events.md`.
 
 ```sh
-cat >> .wallpainter/state.js <<'WP'
-W({t:"step", id:"S7", in:"T2", kind:"note", title:"...", md:`...`})
-W({t:"next", items:[{ref:"D3", why:"..."}]})
+.wallpainter/wp.sh append <<'WP'
+W({t:"topic", id:"T2", title:"…", from:"T1", close:"c9e1", qa:"7d3a", md:"…"})
+W({t:"step", id:"S4", in:"T2", kind:"note|diagram|compare|code|result|qa", title:"…", md:"…"})
+W({t:"ask", id:"D2", in:"T2", q:"…", opts:[{c:"5b8d", h:"…", pro:"…", con:"…", rec:1}, {c:"9f1a", h:"…"}], own:"2d6c"})
+W({t:"answer", d:"D2", c:"5b8d", note:"…"})
+W({t:"status", in:"T2", s:"done|dropped|active|blocked", by:"c9e1", note:"…"})
+W({t:"dep", in:"T3", on:"T2"})  W({t:"focus", in:"T2"})  W({t:"next", items:[{ref:"D2", why:"…"}]})  W({t:"patch", id:"S4", md:"…"})
 WP
-node --check .wallpainter/state.js   # if node exists; a syntax error blanks nothing, but the board stops updating
 ```
 
-Without shell access, append the lines to the end of the file with your edit tool.
+Codes are random 4-hex strings from `.wallpainter/wp.sh code`. IDs: `T`, `D`, `S` plus a running number, never reused (`grep -o 'id:"T[0-9]*"' .wallpainter/state.js | tail -1` finds the last one).
 
-### IDs
+## 3. Reference map
 
-- Topics `T1, T2, ...`; decisions `D1, D2, ...`; steps `S1, S2, ...`. Sequential per board, never reused.
-- If you lost track (for example after context compaction), find the last one: `grep -o 'id:"T[0-9]*"' .wallpainter/state.js | tail -1`.
-- Recover the board skeleton cheaply: `grep -E 't:"(topic|ask|answer|status|dep|focus|next)"' .wallpainter/state.js`.
-- `T1`, `D2`, `S3` written in any text field become clickable links in the viewer.
+- First use in a project, or the board's viewer is older than this skill: read `references/setup.md`.
+- You create a decision, or the user's message has a code (answer, close, question) or starts with `neu - `: read `references/codes.md`.
+- Unsure about a field, a step kind or the syntax: read `references/events.md`.
 
-### Event reference
+## 4. Token budget (mandatory)
 
-| `t` | Fields | Meaning |
-|---|---|---|
-| `board` | `title`, `lang` (`de`, `en`, ...) | Board title and UI language. First line. |
-| `topic` | `id`, `title`, `close`, `qa`, `md?`, `from?` | New topic or tab. `close` is its close code and `qa` its question code (§6). `from` is the parent topic it branched off. |
-| `step` | `id`, `in`, `kind`, `title`, plus kind fields, `md?` | One unit of explanation inside topic `in`. |
-| `ask` | `id`, `in`, `q`, `md?`, `opts`, `own` | A decision. See §6. |
-| `answer` | `d`, `c`, `note?` | The user's answer to decision `d`: code `c` and their own text in `note`. |
-| `status` | `in`, `s`, `by?`, `note?` | `s`: `open`, `active`, `blocked`, `done`, `dropped`. `done` and `dropped` close the branch. `by` is the close code the user typed. |
-| `dep` | `in`, `on`, `note?` | Topic `in` depends on, or waits for, topic `on`. |
-| `focus` | `in` | Current topic. The viewer highlights its path from the root. |
-| `next` | `items:[{ref, why}]` | Your ranked to-do list for the overview. Replaces the previous list. |
-| `patch` | `id`, fields... | Correct an earlier topic, step or decision by id. Never edit old lines. |
-
-Step kinds:
-
-| `kind` | Extra fields | Use for |
-|---|---|---|
-| `note` | `md` | Short explanation. This is the default. |
-| `diagram` | `mermaid` | Flows, architecture, sequences (Mermaid syntax). The cheapest way to show structure. |
-| `compare` | `a:{h, md}`, `b:{h, md}` | Left/right: current vs. target state, option A vs. B. |
-| `code` | `code`, `lang` | Snippets. `lang:"diff"` colours `+` and `-` lines. |
-| `result` | `md` | Outcome or conclusion of a topic (highlighted). |
-| `qa` | `q`, `a`, `ref?` | The user's question about a topic and your answer; `ref` is the card it is about (§6, Questions). |
-
-`md` supports paragraphs, `- lists`, `1. lists`, `**bold**`, `` `code` ``, fenced code, `#` headings, `[text](url)` and `| pipe | tables |`.
-
-## 5. Token budget (mandatory)
-
-- **Append only.** Never re-read `state.js` whole; use `grep` (§4). Never rewrite `index.html` after setup.
+- **Append only.** Never re-read `state.js` whole; use `grep`. Never rewrite `index.html`.
 - **One idea per step.** `md` at most ~12 lines. Titles at most 6 words. Option labels at most 5 words. Each pro/con at most 8 words.
-- **Pictures over prose.** Prefer a `diagram`, `compare`, `diff` or table to a paragraph.
+- **Pictures over prose.** Prefer `diagram`, `compare` or a table to a paragraph.
 - **No duplication.** Never repeat board content in chat. Don't restate earlier steps; link them (`see S4`).
-- **Batch.** Append all events of a turn in a single write.
-- Leave out speculation, filler and summaries of what you are about to do.
+- **Batch.** One `wp.sh append` per turn.
 
-## 6. Decisions, answer codes and close codes
-
-```js
-W({t:"ask", id:"D2", in:"T2", q:"How do we migrate existing hashes?", md:"optional context", opts:[
-  {c:"5b8d", h:"Rehash on login", md:"optional detail", pro:["no downtime","no batch job"], con:"inactive users keep old cost", rec:1},
-  {c:"9f1a", h:"Batch job", con:"impossible without plaintext"}
-], own:"2d6c"})
-```
-
-- All codes (option, own and close codes) are **4 random lowercase hex characters**, unique on the board. They are not sequential and not derived from the text. Check that a code is unused: `grep -c '"5b8d"' .wallpainter/state.js` must print `0`.
-- Every `ask` has 2–4 `opts` and one `own` code. Mark at most one option `rec:1` (your recommendation).
-- Ask only what the user must decide. Don't turn something you can decide yourself into an `ask`; record it as a `note`.
-- **Reading answers.** The user replies in chat with codes, separated by commas or newlines:
-  - `5b8d`: choose this option.
-  - `5b8d - but log every rehash`: choose it with an amendment.
-  - `2d6c - use argon2 instead`: their own solution (the `own` code).
-  - A topic's close code: close that topic (see below).
-  - Free text without a code: map it to the decision if that is unambiguous; otherwise ask back in one line.
-  - An unknown code: ask back in one line. Never guess.
-- Record each answer immediately: `W({t:"answer", d:"D2", c:"5b8d", note:"but log every rehash"})`. Then act on it. Never ask the same question again.
-
-### Questions
-
-Every `topic` also carries `qa:"<code>"`, a second code (different from `close`) for questions:
-
-- `7d3a - Why cost 12?`: a question about that topic. Without text after the code, ask back in one line.
-- `7d3a S4 - Why this value?`: a question about one card. The id (`S4`, `D2`, ...) sits between code and dash; the viewer's ID chip on each card copies this prefix. Answer as below with `ref:"S4"`, and answer about that card, not the whole topic.
-- Answer on the board, not in chat: append `W({t:"step", id:"S20", in:"T2", kind:"qa", title:"Question", q:"Why cost 12?", ref:"S4", a:"<answer in md>"})` (`ref` only when the question named a card) to that topic, with a diagram or code block in `a` if it helps.
-- Chat gets one line: `WP · answer in T2 → S20`, plus at most one sentence if the answer is a single fact.
-- A question changes neither status, focus nor `next`. Only if the answer reveals a new problem, open a new topic or decision.
-- Questions about a decision are possible too: put them in the decision's topic and name the decision (`D2`) in `q`.
-
-### New topics
-
-The overview shows a **New topic** tag; clicking it copies `neu - ` (`new - ` if the board language is not German). A user message that starts with this keyword and ` - ` starts a topic:
-
-- `neu - Cache layer`: new root-level topic `Cache layer`, branched from `T1`.
-- `neu T2 - Cache layer`: new topic branched from `T2`.
-- Create it like any topic (§7): own `close` and `qa` codes, a first `note` step with what you understood, `focus` on it and `next`. If the title is empty or unclear, ask back in one line.
-- Free text like "new topic: …" works too, but the keyword form is the unambiguous one.
-
-### Close codes
-
-Every `topic` carries `close:"<code>"`, so the user can end a problem at any time:
-
-- `c9e1`: close the topic as `done`.
-- `c9e1 - <text>`: close it with that note. Use `dropped` instead of `done` if the text says to abandon or discard it.
-- Record it: `W({t:"status", in:"T2", s:"done", by:"c9e1", note:"deploy ok"})`.
-- **Cascade**: close every sub-topic with status `open` or `blocked` as well, with the same `s` and `note:"closed with T2"`, but no `by`. Open decisions inside closed topics need no answer anymore.
-- **Active sub-topics stay open.** A sub-topic with status `active` is being worked on, so closing its parent must not close it. Name them in the chat line (`T3 stays open (active)`); the user closes them with their own code.
-- **Afterwards**:
-  - Topics that waited for the closed one are free again; continue with them.
-  - If the closed topic had the focus, set `focus` to its parent.
-  - Update `next`.
-- Closing the root topic (`T1`) ends the board's task. Reply with a one-line summary.
-- Close a topic yourself only when its result is verified (for example, tests pass). Otherwise add a `result` step and let the user close it by code.
-
-## 7. Topics, branching, dependencies
+## 5. Topics, branching, dependencies
 
 - **Branch** (new `topic` with `from`) when a sub-problem needs its own decision(s) or several steps **and** can be worked or decided separately. A detail belongs in a step, not a branch.
 - **Limit: at most 5 open topics at once.** Record a new sub-problem as a step first; promote it to a topic only when it needs its own decision or several steps. Before the 6th open topic, ask in one line which open topic to close or drop; do not open it before the answer.
 - Set `status` `active` while working on a topic, `blocked` plus a `dep` when it waits for another topic, `done` when it is resolved (shown as a merge into its parent), and `dropped` (with `note`) when it is abandoned.
-- The first topic (`T1`) is the root problem and stays open until the whole task is done.
-- Close a topic with a `result` step before setting `done`.
+- `T1` is the root problem and stays open until the whole task is done. Add a `result` step before setting a topic `done`.
 
-## 8. Focus and priority
+## 6. Focus and priority
 
 - Emit `focus` whenever the work moves to another topic.
 - Emit `next` at the end of every turn in which priorities changed. List 3–7 items (topics or decisions), most important first, each with a `why` of at most 10 words.
-- Rank by:
-  1. decisions that block other work, because the user's time is the bottleneck;
-  2. work that unblocks other topics;
-  3. risk;
-  4. effort.
-- The viewer greys out items that are answered or closed. Remove them at the next update.
-- The viewer marks a topic *ready* when it is open, waits for no open topic and has no open sub-topics (Mikado principle: work the leaves first). A `blocked` status backed by `dep` events ends when those topics close; `blocked` without a `dep` means an external blocker and stays until you change the status. Use `dep` and `status` precisely so this stays correct.
+- Rank by: decisions that block other work first (the user's time is the bottleneck), then work that unblocks topics, then risk, then effort. Drop answered or closed items at the next update.
+- The viewer marks a topic *ready* when it is open, waits for no open topic and has no open sub-topics. A `blocked` status backed by `dep` events ends when those topics close; `blocked` without a `dep` is an external blocker. Use `dep` and `status` precisely.
 
-## 9. Chat reply format
+## 7. Chat reply format
 
 After updating the board, reply in the user's language with **at most 5 lines**. A line is one short sentence or one template line; wrapped long text counts as several lines.
 
@@ -216,7 +89,7 @@ D2 Migrate hashes?  5b8d Rehash on login (rec) | 9f1a Batch job | 2d6c - own
 Next: D2 → T3
 ```
 
-- Line 1: the topic you worked on, its close code, what changed, and the number of open topics against the limit (`4/5 open`, §7).
+- Line 1: the topic you worked on, its close code, what changed, and the number of open topics against the limit (`4/5 open`, §5).
 - Lines 2–3: open decisions, each with its codes and short labels, so the user can answer without opening the board. Show at most 2 open decisions; the rest stay on the board (`+3 more on the board`).
 - Last line: one Next entry. The ranked list stays on the board.
 - **No second question:** if your environment adds its own next-step box or question, do not add another question in the text; the decisions and the Next entry above are the only prompts.
@@ -228,36 +101,9 @@ Next: D2 → T3
 - The same applies to the **closing message** of a task and to summaries produced by tools or the app (plan, wrap-up, recap): they follow this section too. Never write a report after the board update.
 - **Self-check before sending:** count the lines. Is any sentence not needed to answer, decide or act? Is any content missing from the board? If so, move it to a step and cut it from the reply.
 
-## 10. Every turn: checklist
+## 8. Every turn: checklist
 
 1. Parse codes in the user's message: append `answer` events for answer codes, `status` events (with cascade) for close codes, and `qa` steps for question codes.
-2. Do the work. Append new steps, topics, decisions, status changes and deps in one batch.
-3. Append `focus` if it changed, and `next` if priorities changed.
-4. Validate (`node --check`) if available.
-5. Reply in chat per §9.
-
-## 11. Example (one turn)
-
-User: "Login takes 4 s, fix it."
-
-```js
-W({t:"topic", id:"T1", title:"Login takes 4 s", close:"f3a0", qa:"a8d5", md:"Target < 500 ms."})
-W({t:"step", id:"S1", in:"T1", kind:"diagram", title:"Current flow", mermaid:`flowchart LR
-  B[Browser] --> A[/login] --> H[bcrypt cost 14]
-  A --> D[(users, no index on email)]`})
-W({t:"step", id:"S2", in:"T1", kind:"note", title:"Profile (200 logins)", md:"| part | time |\n|---|---|\n| bcrypt | **2.9 s** |\n| user lookup | 0.9 s |\n| session write | 0.3 s |"})
-W({t:"topic", id:"T2", title:"bcrypt cost", from:"T1", close:"c9e1", qa:"7d3a"})
-W({t:"topic", id:"T3", title:"Index users.email", from:"T1", close:"b7d2", qa:"e46c"})
-W({t:"dep", in:"T3", on:"T2", note:"measure after T2"})
-W({t:"ask", id:"D1", in:"T2", q:"Lower bcrypt cost to?", opts:[{c:"a3f9", h:"12", pro:"~0.7 s, OWASP ok", rec:1},{c:"7c2e", h:"10", con:"below OWASP minimum"}], own:"e01d"})
-W({t:"focus", in:"T2"})
-W({t:"next", items:[{ref:"D1", why:"blocks T2 and T3"},{ref:"T3", why:"cheap win once T2 is merged"}]})
-```
-
-Chat:
-
-```
-WP · T1 analysed (close f3a0, ask a8d5), split into T2 bcrypt cost (c9e1/7d3a) and T3 index (b7d2/e46c) · 3/5 open
-D1 bcrypt cost?  a3f9 12 (rec) | 7c2e 10 | e01d - own
-Next: D1 → T3
-```
+2. Do the work; add steps, topics, decisions, status changes, deps, `focus` and `next` as needed.
+3. Write all events of the turn with one `.wallpainter/wp.sh append` call (it validates).
+4. Reply in chat per §7.
