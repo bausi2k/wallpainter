@@ -6,7 +6,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 2.4.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 2.5.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > Files: this `SKILL.md` (the protocol) and `assets/index.html` (the viewer). Copy the viewer into each project with the command in §3; never read it into context.
 
