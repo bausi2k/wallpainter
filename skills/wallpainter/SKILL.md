@@ -6,7 +6,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 2.9.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 2.10.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > Files: this `SKILL.md` (the protocol), `scripts/wp.sh` (helper) and `assets/index.html` (the viewer). Copy both into each project with the command in §3; never read them into context.
 > Chat is linear, problems are a graph: the board is a local HTML page with a topic tree, one tab per topic and your ranked next steps. You write data events, never markup.
@@ -57,16 +57,17 @@ Run only if `.wallpainter/index.html` is missing, or if its `data-wp-version` is
    // Wallpainter event log - append only. Format: wallpainter SKILL.md section 4.
    W({t:"board", title:"<short goal>", lang:"<user language, e.g. de>"})
    ```
-3. Add `.wallpainter/` to `.gitignore` (default). Say so in one chat line; if the user wants the board versioned, remove the entry.
-4. Open the board once in the user's **system browser**: `open .wallpainter/index.html` on macOS, `xdg-open` on Linux, `start` on Windows. It reloads `state.js` every 2 s by itself.
-   Never open it via `file://` in an embedded agent browser (for example a browser pane of your own app). Such panes often show static snapshots or `data:` copies that cannot reach `state.js`, so the board stays empty. If the user wants it inside such a pane, serve it locally and open `http://localhost:8766`:
+3. Add `.wallpainter/` to `.gitignore` (default). Say so in one chat line.
+4. Open the board once in the user's **system browser**: `open .wallpainter/index.html` (macOS), `xdg-open` (Linux), `start` (Windows). It reloads `state.js` every 2 s.
+   In an embedded agent browser (a browser pane of your own app) never open it via `file://`: such panes show static snapshots that cannot reach `state.js`. If the user wants it there, serve it and open `http://localhost:8766` (if the port is busy, take the next free port):
    ```sh
    python3 -m http.server 8766 --bind 127.0.0.1 --directory .wallpainter
    ```
+   **The board gets its own tab, and you never navigate that tab.** Open every other page (dev server, tests, screenshots) in a new tab and pass its `tabId` to every `navigate`, `javascript` and `click` call; without a `tabId` the call hits the active tab, often the board.
 
 ## 4. Event log format
 
-`state.js` is plain JavaScript: one `W({...})` call per event, in chronological order. Keys may be unquoted. For multi-line text use template literals (`` `...` ``) and escape `` ` `` and `${` inside them.
+`state.js` is plain JavaScript: one `W({...})` call per event, in order. Keys may be unquoted. For multi-line text use template literals (`` `...` ``) and escape `` ` `` and `${` inside them.
 
 Append with one call per turn. `wp.sh append` checks the syntax (with `node` if present) and rejects a code that is already on the board or repeated in the batch; on an error nothing is written:
 
@@ -84,7 +85,6 @@ WP
 - Topics `T1, T2, ...`; decisions `D1, D2, ...`; steps `S1, S2, ...`. Sequential per board, never reused.
 - If you lost track (for example after context compaction), find the last one: `grep -o 'id:"T[0-9]*"' .wallpainter/state.js | tail -1`.
 - Recover the board skeleton cheaply: `grep -E 't:"(topic|ask|answer|status|dep|focus|next)"' .wallpainter/state.js`.
-- `T1`, `D2`, `S3` written in any text field become clickable links in the viewer.
 
 ### Event reference
 
@@ -106,7 +106,7 @@ Step kinds:
 | `kind` | Extra fields | Use for |
 |---|---|---|
 | `note` | `md` | Short explanation. This is the default. |
-| `diagram` | `mermaid` | Flows, architecture, sequences (Mermaid syntax). The cheapest way to show structure. |
+| `diagram` | `mermaid` | Flows, architecture, sequences (Mermaid syntax). |
 | `compare` | `a:{h, md}`, `b:{h, md}` | Left/right: current vs. target state, option A vs. B. |
 | `code` | `code`, `lang` | Snippets. `lang:"diff"` colours `+` and `-` lines. |
 | `result` | `md` | Outcome or conclusion of a topic (highlighted). |
@@ -183,7 +183,7 @@ Every `topic` carries `close:"<code>"`, so the user can end a problem at any tim
 
 - **Branch** (new `topic` with `from`) when a sub-problem needs its own decision(s) or several steps **and** can be worked or decided separately; a detail is a step.
 - **Limit: at most 5 open topics at once.** Record a new sub-problem as a step first; promote it to a topic only when it needs its own decision or several steps. Before the 6th open topic, ask in one line which open topic to close or drop; do not open it before the answer.
-- Set `status` `active` while working on a topic, `blocked` plus a `dep` when it waits for another topic, `done` when it is resolved (shown as a merge into its parent), and `dropped` (with `note`) when it is abandoned.
+- Set `status` `active` while working on a topic, `blocked` plus a `dep` when it waits for another topic, `done` when it is resolved, and `dropped` (with `note`) when it is abandoned.
 - The first topic (`T1`) is the root problem and stays open until the whole task is done.
 - Close a topic with a `result` step before setting `done`.
 
