@@ -1,0 +1,15 @@
+{
+  "name": "wallpainter",
+  "description": "Wallpainter: a board instead of a wall of text for coding agents.",
+  "owner": {
+    "name": "bausi2k",
+    "url": "https://github.com/bausi2k"
+  },
+  "plugins": [
+    {
+      "name": "wallpainter",
+      "source": "./",
+      "description": "Board instead of a wall of text: visual structure tree, decisions with answer codes, close and question codes per topic."
+    }
+  ]
+}
