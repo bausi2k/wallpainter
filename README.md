@@ -56,7 +56,7 @@ Every topic (problem) has its own close code. It is shown in the topic header an
 | `c9e1 - deploy ok` | Closed, with your note. |
 | `c9e1 - not worth it` | Closed as *dropped*. |
 
-Closing a topic also closes its open sub-topics. Its open decisions disappear, and topics that waited for it become *ready*.
+Closing a topic also closes its sub-topics that are open or blocked; sub-topics that are being worked on (*active*) stay open and the agent names them. Its open decisions disappear, and topics that waited for it become *ready*.
 
 ## Starting a topic
 
@@ -100,12 +100,12 @@ Wallpainter is a folder with two files: `SKILL.md` (the protocol) and `assets/in
 | Protocol in context | every session | only when a board is needed | only when a board is needed | only when a board is needed |
 | You add | folder + block in `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` | folder + one-line rule in `CLAUDE.md` | folder + one-line rule | one command, no `CLAUDE.md` edit |
 
-All commands pin a release (`v2.6.0`), so changes in this repository never reach your sessions unannounced. To update, run the download again with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
+All commands pin a release (`v2.6.1`), so changes in this repository never reach your sessions unannounced. To update, run the download again with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
 
 ### 1. Instruction file (any agent)
 
 ```bash
-D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.0/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
+D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.1/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
 ```
 
 ```markdown
@@ -113,12 +113,12 @@ D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.0
 Follow the Wallpainter protocol in `~/.wallpainter/SKILL.md`; read it at session start.
 ```
 
-Without a download, point the block at the URLs instead and load them with `curl` (not a web-fetch tool, which may summarise the file): `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.0/skills/wallpainter/SKILL.md` and `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.0/skills/wallpainter/assets/index.html`.
+Without a download, point the block at the URLs instead and load them with `curl` (not a web-fetch tool, which may summarise the file): `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.1/skills/wallpainter/SKILL.md` and `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.1/skills/wallpainter/assets/index.html`.
 
 ### 2. Claude Code skill
 
 ```bash
-D=~/.claude/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.0/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
+D=~/.claude/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.1/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
 ```
 
 Skills load on demand, but Wallpainter is a way of communicating, so add a one-line rule to `~/.claude/CLAUDE.md`:
@@ -133,7 +133,7 @@ For any reply longer than ~8 lines, with a decision between options, or with sev
 Copy the folder into Antigravity's skills directory: per project `.agents/skills/wallpainter/`, or the global skills folder named in the [Antigravity docs](https://antigravity.google/docs/skills). Then add the same one-line rule as an Antigravity rule (for example `.agents/rules/wallpainter.md`).
 
 ```bash
-D=.agents/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.0/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
+D=.agents/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.1/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
 ```
 
 ### 4. Claude Code plugin
