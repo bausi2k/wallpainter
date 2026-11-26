@@ -6,7 +6,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 2.6.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 2.6.1 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > Files: this `SKILL.md` (the protocol) and `assets/index.html` (the viewer). Copy the viewer into each project with the command in §3; never read it into context.
 
@@ -177,7 +177,8 @@ Every `topic` carries `close:"<code>"`, so the user can end a problem at any tim
 - `c9e1`: close the topic as `done`.
 - `c9e1 - <text>`: close it with that note. Use `dropped` instead of `done` if the text says to abandon or discard it.
 - Record it: `W({t:"status", in:"T2", s:"done", by:"c9e1", note:"deploy ok"})`.
-- **Cascade**: close every open sub-topic as well, with the same `s` and `note:"closed with T2"`, but no `by`. Open decisions inside closed topics need no answer anymore.
+- **Cascade**: close every sub-topic with status `open` or `blocked` as well, with the same `s` and `note:"closed with T2"`, but no `by`. Open decisions inside closed topics need no answer anymore.
+- **Active sub-topics stay open.** A sub-topic with status `active` is being worked on, so closing its parent must not close it. Name them in the chat line (`T3 stays open (active)`); the user closes them with their own code.
 - **Afterwards**:
   - Topics that waited for the closed one are free again; continue with them.
   - If the closed topic had the focus, set `focus` to its parent.
