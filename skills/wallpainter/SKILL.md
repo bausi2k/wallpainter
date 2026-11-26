@@ -6,7 +6,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 2.8.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 2.8.1 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > Files: this `SKILL.md` (the protocol), `scripts/wp.sh` (helper) and `assets/index.html` (the viewer). Copy both into each project with the command in §3; never read them into context.
 > Chat is linear, problems are a graph: the board is a local HTML page with a topic tree, one tab per topic and your ranked next steps. You write data events, never markup.
@@ -36,7 +36,7 @@ User commands (case-insensitive, anywhere in a message):
 | `wp open` | Open the board in the system browser (§3, step 4). |
 | `wp new <title>` | Archive the board (rename `state.js` to `state-<YYYYMMDD-HHMM>.js`), then start a fresh one. |
 | `focus T3` | Make T3 the current topic. |
-| `wp version` | Run `.wallpainter/wp.sh version <skill-dir>` and report installed vs. newest version in one line. If an update exists, show the printed update command; never run the update yourself, the user runs it and then types `/wallpainter`. |
+| `wp version` | Run `.wallpainter/wp.sh version <skill-dir>`; report installed vs. newest in one line and show the printed update command. Never run the update yourself; the user runs it, then types `/wallpainter`. |
 
 ## 3. Setup (once per project)
 
@@ -119,7 +119,7 @@ Step kinds:
 - **Append only.** Never re-read `state.js` whole; use `grep`. Never rewrite `index.html`.
 - **One idea per step.** `md` at most ~12 lines. Titles at most 6 words. Option labels at most 5 words. Each pro/con at most 8 words.
 - **Pictures over prose.** Prefer `diagram`, `compare` or a table to a paragraph.
-- **No duplication.** Never repeat board content in chat. Don't restate earlier steps; link them (`see S4`).
+- **No duplication.** Never repeat board content in chat; link earlier steps (`see S4`).
 - **Batch.** One `wp.sh append` per turn.
 
 ## 6. Decisions, answer codes and close codes
@@ -131,7 +131,7 @@ W({t:"ask", id:"D2", in:"T2", q:"How do we migrate existing hashes?", md:"option
 ], own:"2d6c"})
 ```
 
-- All codes (option, own and close codes) are **4 random lowercase hex characters**, unique on the board. They are not sequential and not derived from the text. Get unused codes with `.wallpainter/wp.sh code`.
+- All codes (option, own and close codes) are **4 random lowercase hex characters**, unique on the board. They are not sequential and not derived from the text. Get unused codes with `.wallpainter/wp.sh code`. **Never type codes by hand**: `wp.sh append` rejects anything that is not exactly 4 lowercase hex characters. The own code must differ from the option codes of the same decision.
 - Every `ask` has 2–4 `opts` and one `own` code. Mark at most one option `rec:1` (your recommendation).
 - Ask only what the user must decide. Don't turn something you can decide yourself into an `ask`; record it as a `note`.
 - **Reading answers.** The user replies in chat with codes, separated by commas or newlines:
@@ -181,7 +181,7 @@ Every `topic` carries `close:"<code>"`, so the user can end a problem at any tim
 
 ## 7. Topics, branching, dependencies
 
-- **Branch** (new `topic` with `from`) when a sub-problem needs its own decision(s) or several steps **and** can be worked or decided separately. A detail belongs in a step, not a branch.
+- **Branch** (new `topic` with `from`) when a sub-problem needs its own decision(s) or several steps **and** can be worked or decided separately; a detail is a step.
 - **Limit: at most 5 open topics at once.** Record a new sub-problem as a step first; promote it to a topic only when it needs its own decision or several steps. Before the 6th open topic, ask in one line which open topic to close or drop; do not open it before the answer.
 - Set `status` `active` while working on a topic, `blocked` plus a `dep` when it waits for another topic, `done` when it is resolved (shown as a merge into its parent), and `dropped` (with `note`) when it is abandoned.
 - The first topic (`T1`) is the root problem and stays open until the whole task is done.

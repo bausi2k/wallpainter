@@ -65,6 +65,14 @@ new_code() {
   done
 }
 
+# values of c, own, close, qa (any content, same lines as codes_of) that are not exactly 4 lowercase hex characters
+shape_errors() {
+  grep -v -E '"?t"?: ?"(answer|patch)"' "$1" |
+    grep -o -E '(^|[^A-Za-z0-9_])"?(c|own|close|qa)"?: ?"[^"]*"' |
+    sed -E 's/.*: ?"([^"]*)"$/\1/' |
+    grep -v -E '^[0-9a-f]{4}$'
+}
+
 # new codes of a batch: values of c, own, close, qa in every line that is not an answer or patch event
 codes_of() {
   grep -v -E '"?t"?: ?"(answer|patch)"' "$1" |
@@ -81,6 +89,9 @@ case $cmd in
     trap 'rm -rf "$dir"' EXIT
     cat > "$dir/new.js"
     [ -s "$dir/new.js" ] || fail "no events on stdin"
+
+    bad=$(shape_errors "$dir/new.js" | head -1)
+    [ -z "$bad" ] || fail "\"$bad\" is not a valid code: use exactly 4 lowercase hex characters from 'wp.sh code'"
 
     codes_of "$dir/new.js" | sort > "$dir/codes.txt"
     dup=$(uniq -d "$dir/codes.txt" | head -1)
