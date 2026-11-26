@@ -69,24 +69,20 @@ Closing a topic also closes its open sub-topics. Its open decisions disappear, a
 
 ## Installation
 
-1. Download the skill file once:
+Nothing to download. Add this block to your agent's instruction file: `CLAUDE.md` (Claude Code), `AGENTS.md` (Codex and others) or `GEMINI.md` (Gemini CLI). Use the global file to enable it everywhere, or a project file for one repository:
 
-   ```bash
-   mkdir -p ~/.wallpainter && curl -fsSL https://raw.githubusercontent.com/bausi2k/wallpainter/main/wallpainter.skill -o ~/.wallpainter/wallpainter.skill
-   ```
-
-2. Reference it in your agent's instruction file: `CLAUDE.md` (Claude Code), `AGENTS.md` (Codex and others) or `GEMINI.md` (Gemini CLI). Use the global file to enable it everywhere, or a project file for one repository:
-
-   ```markdown
-   ## Communication
-   Follow the Wallpainter protocol in `~/.wallpainter/wallpainter.skill`.
-   At session start, read it up to the line "## Appendix A" (never read the appendix):
-   `sed -n '1,/^## Appendix A/p' ~/.wallpainter/wallpainter.skill`
-   ```
+```markdown
+## Communication (Wallpainter)
+Follow the Wallpainter protocol. At session start, load it (never read past "## Appendix A"):
+`curl -fsSL https://raw.githubusercontent.com/bausi2k/wallpainter/v1.3.0/wallpainter.skill | sed -n '1,/^## Appendix A/p'`
+Skill source for the viewer setup (§3): https://raw.githubusercontent.com/bausi2k/wallpainter/v1.3.0/wallpainter.skill
+```
 
 On first use in a project, the agent creates `.wallpainter/`, extracts the viewer from the skill file with a shell command, adds `.wallpainter/` to `.gitignore` and opens the board.
 
-> Avoid `@`-importing the whole file (for example `@~/.wallpainter/wallpainter.skill` in `CLAUDE.md`). That would load the ~650-line viewer into every session.
+- **Pinned to a tag.** The URL names a release (`v1.3.0`), not `main`, so changes in this repository never reach your sessions unannounced. To update, replace the version in both lines with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
+- **`curl`, not a web-fetch tool.** Some agents summarise fetched pages, which drops protocol details; `curl` returns the file verbatim.
+- **Viewer stays out of context.** `sed` stops at Appendix A, so the ~650-line viewer never enters the context. It goes straight from the URL into `.wallpainter/index.html`.
 
 ## Token efficiency
 
