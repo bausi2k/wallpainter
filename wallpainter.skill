@@ -1,8 +1,8 @@
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 1.2.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 1.3.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
-> **Agent: load sections 0–11 into context. Do NOT read Appendix A** (the viewer, ~490 lines).
+> **Agent: load sections 0–11 into context. Do NOT read Appendix A** (the viewer, ~650 lines).
 > Copy it into the project with the command in §3. To read only the protocol:
 > `sed -n '1,/^## Appendix A/p' <path-to>/wallpainter.skill`
 
@@ -11,7 +11,7 @@ Skill version: 1.2.0 · License: PolyForm Noncommercial 1.0.0 · https://github.
 1. Never answer with a wall of text. Explanations, analyses, comparisons and decisions go to the **board**; the chat gets at most 5 lines (§9).
 2. The board is one append-only event log, `.wallpainter/state.js`. You only **append** events (§4). You never rewrite or re-read it whole.
 3. Every decision has options with random 4-hex **answer codes**, plus an **own** code for the user's own solution (§6).
-4. Every sub-problem that needs its own decisions or several steps gets its own **topic** (one tab), linked to its parent (§7).
+4. Every sub-problem that needs its own decisions or several steps gets its own **topic** (one tab), linked to its parent (§7). Every topic has a **close code**; the user closes the topic by typing it (§6).
 5. After each turn, you keep the **focus** (current path) and the ranked **next** list up to date (§8).
 
 ## 1. Purpose
@@ -87,11 +87,11 @@ Without shell access, append the lines to the end of the file with your edit too
 | `t` | Fields | Meaning |
 |---|---|---|
 | `board` | `title`, `lang` (`de`, `en`, ...) | Board title and UI language. First line. |
-| `topic` | `id`, `title`, `md?`, `from?` | New topic or tab. `from` is the parent topic it branched off. |
+| `topic` | `id`, `title`, `close`, `md?`, `from?` | New topic or tab. `close` is its close code (§6). `from` is the parent topic it branched off. |
 | `step` | `id`, `in`, `kind`, `title`, plus kind fields, `md?` | One unit of explanation inside topic `in`. |
 | `ask` | `id`, `in`, `q`, `md?`, `opts`, `own` | A decision. See §6. |
 | `answer` | `d`, `c`, `note?` | The user's answer to decision `d`: code `c` and their own text in `note`. |
-| `status` | `in`, `s`, `note?` | `s`: `open`, `active`, `blocked`, `done`, `dropped`. `done` and `dropped` close the branch. |
+| `status` | `in`, `s`, `by?`, `note?` | `s`: `open`, `active`, `blocked`, `done`, `dropped`. `done` and `dropped` close the branch. `by` is the close code the user typed. |
 | `dep` | `in`, `on`, `note?` | Topic `in` depends on, or waits for, topic `on`. |
 | `focus` | `in` | Current topic. The viewer highlights its path from the root. |
 | `next` | `items:[{ref, why}]` | Your ranked to-do list for the overview. Replaces the previous list. |
@@ -118,7 +118,7 @@ Step kinds:
 - **Batch.** Append all events of a turn in a single write.
 - Leave out speculation, filler and summaries of what you are about to do.
 
-## 6. Decisions and answer codes
+## 6. Decisions, answer codes and close codes
 
 ```js
 W({t:"ask", id:"D2", in:"T2", q:"How do we migrate existing hashes?", md:"optional context", opts:[
@@ -127,16 +127,32 @@ W({t:"ask", id:"D2", in:"T2", q:"How do we migrate existing hashes?", md:"option
 ], own:"2d6c"})
 ```
 
-- Codes are **4 random lowercase hex characters**, unique on the board. They are not sequential and not derived from the text. Check that a code is unused: `grep -c '"5b8d"' .wallpainter/state.js` must print `0`.
+- All codes (option, own and close codes) are **4 random lowercase hex characters**, unique on the board. They are not sequential and not derived from the text. Check that a code is unused: `grep -c '"5b8d"' .wallpainter/state.js` must print `0`.
 - Every `ask` has 2–4 `opts` and one `own` code. Mark at most one option `rec:1` (your recommendation).
 - Ask only what the user must decide. Don't turn something you can decide yourself into an `ask`; record it as a `note`.
 - **Reading answers.** The user replies in chat with codes, separated by commas or newlines:
   - `5b8d`: choose this option.
   - `5b8d - but log every rehash`: choose it with an amendment.
   - `2d6c - use argon2 instead`: their own solution (the `own` code).
+  - A topic's close code: close that topic (see below).
   - Free text without a code: map it to the decision if that is unambiguous; otherwise ask back in one line.
   - An unknown code: ask back in one line. Never guess.
 - Record each answer immediately: `W({t:"answer", d:"D2", c:"5b8d", note:"but log every rehash"})`. Then act on it. Never ask the same question again.
+
+### Close codes
+
+Every `topic` carries `close:"<code>"`, so the user can end a problem at any time:
+
+- `c9e1`: close the topic as `done`.
+- `c9e1 - <text>`: close it with that note. Use `dropped` instead of `done` if the text says to abandon or discard it.
+- Record it: `W({t:"status", in:"T2", s:"done", by:"c9e1", note:"deploy ok"})`.
+- **Cascade**: close every open sub-topic as well, with the same `s` and `note:"closed with T2"`, but no `by`. Open decisions inside closed topics need no answer anymore.
+- **Afterwards**:
+  - Topics that waited for the closed one are free again; continue with them.
+  - If the closed topic had the focus, set `focus` to its parent.
+  - Update `next`.
+- Closing the root topic (`T1`) ends the board's task. Reply with a one-line summary.
+- Close a topic yourself only when its result is verified (for example, tests pass). Otherwise add a `result` step and let the user close it by code.
 
 ## 7. Topics, branching, dependencies
 
@@ -155,26 +171,26 @@ W({t:"ask", id:"D2", in:"T2", q:"How do we migrate existing hashes?", md:"option
   3. risk;
   4. effort.
 - The viewer greys out items that are answered or closed. Remove them at the next update.
-- The viewer marks a topic *ready* when it is open, not blocked, waits for no open topic and has no open sub-topics (Mikado principle: work the leaves first). Use `dep` and `status` precisely so this stays correct.
+- The viewer marks a topic *ready* when it is open, waits for no open topic and has no open sub-topics (Mikado principle: work the leaves first). A `blocked` status backed by `dep` events ends when those topics close; `blocked` without a `dep` means an external blocker and stays until you change the status. Use `dep` and `status` precisely so this stays correct.
 
 ## 9. Chat reply format
 
 After updating the board, reply in the user's language with **at most 5 lines** and no headings:
 
 ```
-WP · T2 bcrypt cost (new, from T1) · +3 steps
+WP · T2 bcrypt cost (new, from T1 · close c9e1) · +3 steps
 D2 Migrate hashes?  5b8d Rehash on login (rec) | 9f1a Batch job | 2d6c - own
 Next: D2 → T3
 ```
 
-- Line 1: the topic you worked on and what changed.
+- Line 1: the topic you worked on, its close code, and what changed.
 - Lines 2–3: open decisions, each with its codes and short labels, so the user can answer without opening the board.
 - Last line: the next items.
 - Errors, commands the user must run, or a single short code block may follow if the user has to act on them. Everything else stays on the board.
 
 ## 10. Every turn: checklist
 
-1. Parse answer codes in the user's message and append `answer` events.
+1. Parse codes in the user's message: append `answer` events for answer codes, and `status` events (with cascade) for close codes.
 2. Do the work. Append new steps, topics, decisions, status changes and deps in one batch.
 3. Append `focus` if it changed, and `next` if priorities changed.
 4. Validate (`node --check`) if available.
@@ -185,13 +201,13 @@ Next: D2 → T3
 User: "Login takes 4 s, fix it."
 
 ```js
-W({t:"topic", id:"T1", title:"Login takes 4 s", md:"Target < 500 ms."})
+W({t:"topic", id:"T1", title:"Login takes 4 s", close:"f3a0", md:"Target < 500 ms."})
 W({t:"step", id:"S1", in:"T1", kind:"diagram", title:"Current flow", mermaid:`flowchart LR
   B[Browser] --> A[/login] --> H[bcrypt cost 14]
   A --> D[(users, no index on email)]`})
 W({t:"step", id:"S2", in:"T1", kind:"note", title:"Profile (200 logins)", md:"| part | time |\n|---|---|\n| bcrypt | **2.9 s** |\n| user lookup | 0.9 s |\n| session write | 0.3 s |"})
-W({t:"topic", id:"T2", title:"bcrypt cost", from:"T1"})
-W({t:"topic", id:"T3", title:"Index users.email", from:"T1"})
+W({t:"topic", id:"T2", title:"bcrypt cost", from:"T1", close:"c9e1"})
+W({t:"topic", id:"T3", title:"Index users.email", from:"T1", close:"b7d2"})
 W({t:"dep", in:"T3", on:"T2", note:"measure after T2"})
 W({t:"ask", id:"D1", in:"T2", q:"Lower bcrypt cost to?", opts:[{c:"a3f9", h:"12", pro:"~0.7 s, OWASP ok", rec:1},{c:"7c2e", h:"10", con:"below OWASP minimum"}], own:"e01d"})
 W({t:"focus", in:"T2"})
@@ -201,7 +217,7 @@ W({t:"next", items:[{ref:"D1", why:"blocks T2 and T3"},{ref:"T3", why:"cheap win
 Chat:
 
 ```
-WP · T1 analysed, split into T2 bcrypt cost and T3 index
+WP · T1 analysed (close f3a0), split into T2 bcrypt cost (c9e1) and T3 index (b7d2)
 D1 bcrypt cost?  a3f9 12 (rec) | 7c2e 10 | e01d - own
 Next: D1 → T3
 ```
@@ -213,7 +229,7 @@ Copy by command (§3). Do not read or modify.
 ```html
 <!-- wallpainter:viewer:begin -->
 <!doctype html>
-<html lang="en" data-wp-version="1.2.0">
+<html lang="en" data-wp-version="1.3.0">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -275,8 +291,10 @@ th{background:var(--soft)}
 .node .codes{flex:none;color:var(--mut);font:.75rem var(--mono)}
 .chip{flex:none;font-size:.7rem;padding:0 .45rem;border-radius:8px;border:1px solid var(--c);color:var(--c)}
 .chip.ready{background:var(--ok);border-color:var(--ok);color:#fff}
+.node .close-code{flex:none;font-size:.72rem;padding:0 .35rem}
 .legend{margin-top:.7rem;font-size:.78rem;color:var(--mut)}
-@media (max-width:600px){.node .codes{display:none}}
+.closer{margin-top:.4rem;font-size:.85rem;color:var(--mut)}
+@media (max-width:600px){.node .codes,.node .close-code{display:none}}
 #graph{position:relative;overflow-x:auto}
 #graph svg{position:absolute;left:0;top:0;overflow:visible}
 .row{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.85rem;cursor:pointer;border-radius:6px}
@@ -337,8 +355,8 @@ const ROW = 28, LANE_GAP = 18, LANE_PAD = 12;
 const CLOSED = new Set(["done", "dropped"]);
 const STATUS_COLOR = { open: "var(--mut)", active: "var(--acc)", blocked: "var(--bad)", done: "var(--ok)", dropped: "var(--mut)" };
 const TEXT = {
-  en: { overview: "Overview", path: "Path", next: "Up next", openAsks: "Open decisions", none: "Nothing open.", rec: "recommended", own: "your own solution", chosen: "Chosen", waits: "Waits for", blocks: "Blocks", branched: "New topic", allSteps: "all steps", missing: "state.js not found next to index.html", broken: "state.js has an error - showing the last valid state", empty: "No events yet. The agent appends them to state.js.", status: { open: "open", active: "active", blocked: "blocked", done: "done", dropped: "dropped" }, themeTitle: "Appearance", theme: { auto: "Auto", light: "Light", dark: "Dark" }, structure: "Structure", history: "History", ready: "ready", decide: "decide", legend: "<b>bold</b> = current path · <b>ready</b> = can be worked on now · ◆ open decision · red dashed = waits for" },
-  de: { overview: "Übersicht", path: "Pfad", next: "Als Nächstes", openAsks: "Offene Entscheidungen", none: "Nichts offen.", rec: "empfohlen", own: "eigene Lösung", chosen: "Gewählt", waits: "Wartet auf", blocks: "Blockiert", branched: "Neues Thema", allSteps: "alle Schritte", missing: "state.js fehlt neben index.html", broken: "state.js enthält einen Fehler - letzter gültiger Stand wird angezeigt", empty: "Noch keine Einträge. Der Agent schreibt sie nach state.js.", status: { open: "offen", active: "aktiv", blocked: "blockiert", done: "erledigt", dropped: "verworfen" }, themeTitle: "Darstellung", theme: { auto: "Auto", light: "Hell", dark: "Dunkel" }, structure: "Struktur", history: "Verlauf", ready: "bereit", decide: "entscheiden", legend: "<b>fett</b> = aktueller Pfad · <b>bereit</b> = jetzt bearbeitbar · ◆ offene Entscheidung · rot gestrichelt = wartet auf" },
+  en: { overview: "Overview", path: "Path", next: "Up next", openAsks: "Open decisions", none: "Nothing open.", rec: "recommended", own: "your own solution", chosen: "Chosen", waits: "Waits for", blocks: "Blocks", branched: "New topic", allSteps: "all steps", missing: "state.js not found next to index.html", broken: "state.js has an error - showing the last valid state", empty: "No events yet. The agent appends them to state.js.", status: { open: "open", active: "active", blocked: "blocked", done: "done", dropped: "dropped" }, themeTitle: "Appearance", theme: { auto: "Auto", light: "Light", dark: "Dark" }, structure: "Structure", history: "History", ready: "ready", decide: "decide", close: "close this topic", closedBy: "closed with", legend: "<b>bold</b> = current path · <b>ready</b> = can be worked on now · ◆ open decision · red dashed = waits for" },
+  de: { overview: "Übersicht", path: "Pfad", next: "Als Nächstes", openAsks: "Offene Entscheidungen", none: "Nichts offen.", rec: "empfohlen", own: "eigene Lösung", chosen: "Gewählt", waits: "Wartet auf", blocks: "Blockiert", branched: "Neues Thema", allSteps: "alle Schritte", missing: "state.js fehlt neben index.html", broken: "state.js enthält einen Fehler - letzter gültiger Stand wird angezeigt", empty: "Noch keine Einträge. Der Agent schreibt sie nach state.js.", status: { open: "offen", active: "aktiv", blocked: "blockiert", done: "erledigt", dropped: "verworfen" }, themeTitle: "Darstellung", theme: { auto: "Auto", light: "Hell", dark: "Dunkel" }, structure: "Struktur", history: "Verlauf", ready: "bereit", decide: "entscheiden", close: "Thema schließen", closedBy: "geschlossen mit", legend: "<b>fett</b> = aktueller Pfad · <b>bereit</b> = jetzt bearbeitbar · ◆ offene Entscheidung · rot gestrichelt = wartet auf" },
 };
 
 const byId = (id) => document.getElementById(id);
@@ -438,7 +456,14 @@ function fold(events) {
       case "step": topic(e.in).log.push(e); if (e.id) m.items.set(e.id, e); m.rows.push({ e, topic: e.in, minor: true }); break;
       case "ask": e.answer = null; topic(e.in).log.push(e); m.asks.set(e.id, e); m.items.set(e.id, e); m.rows.push({ e, topic: e.in }); break;
       case "answer": { const ask = m.asks.get(e.d); if (ask) { ask.answer = e; m.rows.push({ e, topic: ask.in }); } break; }
-      case "status": topic(e.in).s = e.s; topic(e.in).log.push(e); m.rows.push({ e, topic: e.in }); break;
+      case "status": {
+        const t = topic(e.in);
+        t.s = e.s;
+        t.closedBy = CLOSED.has(e.s) ? e.by : undefined;
+        t.log.push(e);
+        m.rows.push({ e, topic: e.in });
+        break;
+      }
       case "dep": topic(e.on); topic(e.in).log.push(e); m.deps.push(e); m.rows.push({ e, topic: e.in }); break;
       case "focus": topic(e.in); m.focus = e.in; break;
       case "next": m.next = asList(e.items); break;
@@ -446,6 +471,17 @@ function fold(events) {
     }
   });
   return m;
+}
+
+/* A decision is open while unanswered and its topic is not closed. */
+const isOpenAsk = (a) => !a.answer && !CLOSED.has(model.topics.get(a.in)?.s);
+
+/* "blocked" backed by deps ends when all those topics are closed;
+   "blocked" without deps is an external blocker and stays. */
+function effectiveStatus(t) {
+  if (t.s !== "blocked") return t.s;
+  const deps = model.deps.filter((d) => d.in === t.id);
+  return deps.length && deps.every((d) => CLOSED.has(model.topics.get(d.on)?.s)) ? "open" : "blocked";
 }
 
 function pathOf(id) {
@@ -515,6 +551,7 @@ function md(src) {
 }
 
 const link = (id) => `<a data-go="${esc(id)}">${esc(id)}</a>`;
+const closeButton = (code) => `<button class="code close-code" data-copy="${esc(code)}" title="${esc(tx().close)}">${esc(code)}</button>`;
 const statusChip = (s) => `<span class="s" style="--c:${STATUS_COLOR[s] || "var(--mut)"}">${esc(tx().status[s] || s)}</span>`;
 
 /* ---------- views ---------- */
@@ -541,8 +578,8 @@ function render() {
 function renderTabs(current) {
   const tab = (ref, label, fresh) => `<a href="#${esc(ref)}" class="${ref === current ? "on" : ""}${fresh ? " fresh" : ""}">${label}</a>`;
   const topics = [...model.topics.values()].map((t) => {
-    const open = t.log.filter((e) => e.t === "ask" && !e.answer).length;
-    const label = `<span class="dot" style="--c:${STATUS_COLOR[t.s] || "var(--mut)"}"></span>${esc(t.id)} ${esc(short(t.title))}${open ? ` <span class="n">${open}</span>` : ""}`;
+    const open = t.log.filter((e) => e.t === "ask" && isOpenAsk(e)).length;
+    const label = `<span class="dot" style="--c:${STATUS_COLOR[effectiveStatus(t)] || "var(--mut)"}"></span>${esc(t.id)} ${esc(short(t.title))}${open ? ` <span class="n">${open}</span>` : ""}`;
     return tab(t.id, label, topicIsFresh(t));
   });
   return tab("overview", esc(tx().overview), false) + topics.join("");
@@ -551,7 +588,7 @@ const topicIsFresh = (t) => isFresh(t) || t.log.some((e) => isFresh(e) || (e.ans
 
 function renderOverview() {
   if (!model.count) return `<p class="empty">${esc(tx().empty)}</p>`;
-  const openAsks = [...model.asks.values()].filter((a) => !a.answer);
+  const openAsks = [...model.asks.values()].filter(isOpenAsk);
   const asks = openAsks.length ? `<ul>${openAsks.map((a) => `<li><a data-go="${esc(a.id)}"><span class="tag">${esc(a.id)}</span>${inline(a.q)}</a><span class="why">${[...asList(a.opts).map((o) => esc(o.c)), a.own ? `${esc(a.own)} -` : ""].filter(Boolean).join(" · ")}</span></li>`).join("")}</ul>` : `<p class="why">${esc(tx().none)}</p>`;
   const segments = ["structure", "history"].map((v) => `<button type="button" data-view="${v}"${v === view ? ' class="on"' : ""}>${esc(tx()[v])}</button>`).join("");
   const body = view === "history"
@@ -567,7 +604,7 @@ function renderNext() {
   if (!model.next.length) return `<p class="why">${esc(tx().none)}</p>`;
   return `<ol>${model.next.map(({ ref, why }) => {
     const item = model.items.get(ref);
-    const stale = item && (item.answer || CLOSED.has(item.s));
+    const stale = item && (item.t === "ask" ? !isOpenAsk(item) : CLOSED.has(item.s));
     return `<li data-ref="${esc(ref)}"${stale ? ' class="stale"' : ""}><a data-go="${esc(ref)}"><span class="tag">${esc(ref)}</span>${inline(item ? item.q || item.title || "" : "")}</a><span class="why">${inline(why || "")}</span></li>`;
   }).join("")}</ol>`;
 }
@@ -583,7 +620,7 @@ function treeNodes() {
     if (visited.has(t.id)) return;
     visited.add(t.id);
     const index = nodes.push({ ref: t.id, topic: t, depth, parent }) - 1;
-    t.log.filter((e) => e.t === "ask" && !e.answer).forEach((a) => nodes.push({ ref: a.id, ask: a, depth: depth + 1, parent: index }));
+    t.log.filter((e) => e.t === "ask" && isOpenAsk(e)).forEach((a) => nodes.push({ ref: a.id, ask: a, depth: depth + 1, parent: index }));
     t.kids.forEach((id) => visit(model.topics.get(id), depth + 1, index));
   };
   const topics = [...model.topics.values()];
@@ -597,7 +634,7 @@ function renderTree() {
   const isOpen = (id) => !CLOSED.has(model.topics.get(id)?.s);
   const openDeps = model.deps.filter((d) => isOpen(d.in) && isOpen(d.on));
   const waitsOn = (t) => openDeps.filter((d) => d.in === t.id).map((d) => d.on);
-  const isReady = (t) => isOpen(t.id) && t.s !== "blocked" && !waitsOn(t).length && !t.kids.some(isOpen);
+  const isReady = (t) => isOpen(t.id) && effectiveStatus(t) !== "blocked" && !waitsOn(t).length && !t.kids.some(isOpen);
   const onPath = new Set(pathOf(model.focus));
   const nodes = treeNodes();
   const row = new Map(nodes.map((n, i) => [n.ref, i]));
@@ -615,8 +652,9 @@ function renderTree() {
     if (n.ask) {
       parts.push(`<path d="M${x} ${y - 6}L${x + 6} ${y}L${x} ${y + 6}L${x - 6} ${y}Z" fill="var(--warn)"/>`);
     } else {
-      const color = STATUS_COLOR[n.topic.s] || "var(--mut)";
-      parts.push(`<circle cx="${x}" cy="${y}" r="5" fill="${n.topic.s === "open" ? "var(--card)" : color}" stroke="${onPath.has(n.ref) ? "var(--acc)" : color}" stroke-width="2"/>`);
+      const status = effectiveStatus(n.topic);
+      const color = STATUS_COLOR[status] || "var(--mut)";
+      parts.push(`<circle cx="${x}" cy="${y}" r="5" fill="${status === "open" ? "var(--card)" : color}" stroke="${onPath.has(n.ref) ? "var(--acc)" : color}" stroke-width="2"/>`);
     }
   });
 
@@ -643,8 +681,9 @@ function renderTree() {
     const chip = (text, color, cls = "") => `<span class="chip ${cls}" style="--c:${color}">${esc(text)}</span>`;
     const chips = isReady(t) ? chip(words.ready, "var(--ok)", "ready")
       : waits.length ? chip(`${words.waits} ${waits.join(", ")}`, "var(--bad)", "wait")
-      : t.s !== "open" ? chip(words.status[t.s] || t.s, STATUS_COLOR[t.s] || "var(--mut)") : "";
-    return `<div class="node ${classes}" data-ref="${esc(t.id)}" data-go="${esc(t.id)}" data-depth="${n.depth}" style="${style}"><span class="tag">${esc(t.id)}</span><span class="t">${esc(t.title)}</span>${chips}</div>`;
+      : effectiveStatus(t) !== "open" ? chip(words.status[effectiveStatus(t)] || t.s, STATUS_COLOR[effectiveStatus(t)] || "var(--mut)") : "";
+    const closeCode = t.close && !CLOSED.has(t.s) ? closeButton(t.close) : "";
+    return `<div class="node ${classes}" data-ref="${esc(t.id)}" data-go="${esc(t.id)}" data-depth="${n.depth}" style="${style}"><span class="tag">${esc(t.id)}</span><span class="t">${esc(t.title)}</span>${closeCode}${chips}</div>`;
   }).join("");
 
   const width = nx(Math.max(0, ...nodes.map((n) => n.depth))) + 10;
@@ -734,7 +773,10 @@ function renderTopic(t) {
   const blocks = model.deps.filter((d) => d.on === t.id).map((d) => link(d.in));
   const deps = [waits.length ? `${esc(words.waits)}: ${waits.join(", ")}` : "", blocks.length ? `${esc(words.blocks)}: ${blocks.join(", ")}` : ""].filter(Boolean).join(" · ");
   const crumbs = pathOf(t.id).map((id) => `${link(id)} ${esc(short(model.topics.get(id).title, 18))}`).join(" › ");
-  return `<div class="card head"><div class="crumbs">${crumbs}</div><h2>${esc(t.title)}${statusChip(t.s)}</h2>${md(t.md)}${deps ? `<div class="deps">${deps}</div>` : ""}</div>
+  const closer = CLOSED.has(t.s)
+    ? (t.closedBy ? `<div class="closer closed-by">${esc(words.closedBy)} <code>${esc(t.closedBy)}</code></div>` : "")
+    : (t.close ? `<div class="closer">${closeButton(t.close)} ${esc(words.close)}</div>` : "");
+  return `<div class="card head"><div class="crumbs">${crumbs}</div><h2>${esc(t.title)}${statusChip(t.s)}</h2>${md(t.md)}${deps ? `<div class="deps">${deps}</div>` : ""}${closer}</div>
     <ol class="tl">${t.log.map(renderItem).join("")}</ol>`;
 }
 
@@ -744,7 +786,7 @@ function renderItem(e) {
   const mini = (html, color, cls = "") => `<li class="mini ${cls}${fresh}" style="--c:${color}">${html}</li>`;
   switch (e.t) {
     case "branch": return mini(`⎇ ${esc(words.branched)}: ${link(e.ref)} ${esc(model.topics.get(e.ref)?.title || "")}`, "var(--acc)", "branch");
-    case "status": return mini(`${statusChip(e.s)}${e.note ? ` ${inline(e.note)}` : ""}`, STATUS_COLOR[e.s] || "var(--mut)");
+    case "status": return mini(`${statusChip(e.s)}${e.by ? ` <code>${esc(e.by)}</code>` : ""}${e.note ? ` ${inline(e.note)}` : ""}`, STATUS_COLOR[e.s] || "var(--mut)");
     case "dep": return mini(`${esc(words.waits)} ${link(e.on)}${e.note ? ` – ${inline(e.note)}` : ""}`, "var(--bad)");
     case "ask": return `<li class="${fresh}" style="--c:var(--warn)">${renderAsk(e)}</li>`;
     default: return `<li class="${fresh}"${e.id ? ` id="${esc(e.id)}"` : ""} style="--c:${e.kind === "result" ? "var(--ok)" : "var(--acc)"}"><div class="card${e.kind === "result" ? " result" : ""}"><span class="kind">${esc(e.kind || "note")}</span>${e.title ? `<h3>${esc(e.title)}</h3>` : ""}${renderBody(e)}</div></li>`;

@@ -31,6 +31,7 @@ Long agent sessions turn into scrollback soup:
 - **Overview, history view**: a git-style graph showing when topics branched off and merged back.
 - **One tab per topic**: every sub-problem gets its own tab with a top-to-bottom timeline of steps: notes, Mermaid diagrams, side-by-side before/after comparisons, diffs and results.
 - **Decisions with answer codes**: each option gets a short random code. You answer in chat by typing the code.
+- **Close codes**: every topic has its own code. Typing it closes the problem.
 - **Short chat**: the agent replies with at most 5 lines and points to the board.
 
 ## Answering decisions
@@ -43,6 +44,18 @@ Every decision card shows codes. Clicking a code copies it.
 | `5b8d - but log every rehash` | Take it, with your amendment. |
 | `2d6c - use argon2 instead` | Your own solution (every decision has an "own" code). |
 | `5b8d, a3f9` | Answer several decisions at once. |
+
+## Closing a topic
+
+Every topic (problem) has its own close code. It is shown in the topic header and in the structure tree, and the agent's first chat line names it too.
+
+| You type | Meaning |
+|---|---|
+| `c9e1` | Topic solved: closed as *done*. |
+| `c9e1 - deploy ok` | Closed, with your note. |
+| `c9e1 - not worth it` | Closed as *dropped*. |
+
+Closing a topic also closes its open sub-topics. Its open decisions disappear, and topics that waited for it become *ready*.
 
 ## Commands
 
@@ -73,7 +86,7 @@ Every decision card shows codes. Clicking a code copies it.
 
 On first use in a project, the agent creates `.wallpainter/`, extracts the viewer from the skill file with a shell command, adds `.wallpainter/` to `.gitignore` and opens the board.
 
-> Avoid `@`-importing the whole file (for example `@~/.wallpainter/wallpainter.skill` in `CLAUDE.md`). That would load the ~490-line viewer into every session.
+> Avoid `@`-importing the whole file (for example `@~/.wallpainter/wallpainter.skill` in `CLAUDE.md`). That would load the ~650-line viewer into every session.
 
 ## Token efficiency
 
@@ -82,7 +95,7 @@ Wallpainter is designed to cost fewer tokens than a wall of text:
 - **Data, not markup.** The agent appends compact events (`W({t:"step", ...})`) to `.wallpainter/state.js`. The viewer is written once by `awk`, without passing through the model.
 - **Append-only.** The agent never re-reads or rewrites the board; it looks things up with `grep`.
 - **Pictures over prose.** Mermaid diagrams, compare cards and diffs replace paragraphs.
-- **Protocol only.** Only the protocol part (~210 lines) is loaded into context.
+- **Protocol only.** Only the protocol part (~225 lines) is loaded into context.
 
 ## How it works
 
