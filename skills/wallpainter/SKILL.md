@@ -6,7 +6,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 2.3.1 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 2.4.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > Files: this `SKILL.md` (the protocol) and `assets/index.html` (the viewer). Copy the viewer into each project with the command in §3; never read it into context.
 
@@ -160,6 +160,15 @@ Every `topic` also carries `qa:"<code>"`, a second code (different from `close`)
 - Chat gets one line: `WP · answer in T2 → S20`, plus at most one sentence if the answer is a single fact.
 - A question changes neither status, focus nor `next`. Only if the answer reveals a new problem, open a new topic or decision.
 - Questions about a decision are possible too: put them in the decision's topic and name the decision (`D2`) in `q`.
+
+### New topics
+
+The overview shows a **New topic** tag; clicking it copies `neu - ` (`new - ` if the board language is not German). A user message that starts with this keyword and ` - ` starts a topic:
+
+- `neu - Cache layer`: new root-level topic `Cache layer`, branched from `T1`.
+- `neu T2 - Cache layer`: new topic branched from `T2`.
+- Create it like any topic (§7): own `close` and `qa` codes, a first `note` step with what you understood, `focus` on it and `next`. If the title is empty or unclear, ask back in one line.
+- Free text like "new topic: …" works too, but the keyword form is the unambiguous one.
 
 ### Close codes
 
