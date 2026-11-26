@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-wp-version="2.1.0">
+<html lang="en" data-wp-version="2.2.0">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -20,6 +20,11 @@ header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px so
 nav{display:flex;gap:2px;overflow-x:auto;padding:.5rem 16px 0;scrollbar-width:none}
 nav a{flex:none;display:flex;align-items:center;gap:.4rem;padding:.45rem .75rem;border-radius:9px 9px 0 0;color:var(--mut);font-size:.88rem;white-space:nowrap}
 nav a.on{background:var(--card);color:var(--fg);box-shadow:0 0 0 1px var(--line)}
+nav a.ghost{opacity:.5;font-style:italic}
+nav .x{font:inherit;line-height:1;border:0;background:none;color:var(--mut);padding:0 .2rem;border-radius:4px;cursor:pointer}
+nav .x:hover{background:var(--soft);color:var(--fg)}
+nav .more{flex:none;align-self:center;font:inherit;font-size:.8rem;color:var(--mut);background:none;border:1px dashed var(--line);border-radius:8px;padding:.15rem .6rem;margin-left:.4rem;cursor:pointer;white-space:nowrap}
+nav .more.on{color:var(--fg);border-style:solid}
 nav a.fresh::after{content:"";width:6px;height:6px;border-radius:50%;background:var(--warn)}
 .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--c)}
 .n{font-size:.72rem;background:var(--warn);color:#fff;border-radius:9px;padding:0 .4rem}
@@ -137,8 +142,8 @@ const ROW = 28, LANE_GAP = 18, LANE_PAD = 12;
 const CLOSED = new Set(["done", "dropped"]);
 const STATUS_COLOR = { open: "var(--mut)", active: "var(--acc)", blocked: "var(--bad)", done: "var(--ok)", dropped: "var(--mut)" };
 const TEXT = {
-  en: { overview: "Overview", path: "Path", next: "Up next", openAsks: "Open decisions", none: "Nothing open.", rec: "recommended", own: "your own solution", chosen: "Chosen", waits: "Waits for", blocks: "Blocks", branched: "New topic", allSteps: "all steps", missing: "state.js not found next to index.html", broken: "state.js has an error - showing the last valid state", empty: "No events yet. The agent appends them to state.js.", status: { open: "open", active: "active", blocked: "blocked", done: "done", dropped: "dropped" }, themeTitle: "Appearance", theme: { auto: "Auto", light: "Light", dark: "Dark" }, structure: "Structure", history: "History", ready: "ready", decide: "decide", close: "close this topic", closedBy: "closed with", ask: "ask a question", question: "Question", answer: "Answer", legend: "<b>bold</b> = current path · <b>ready</b> = can be worked on now · ◆ open decision · red dashed = waits for" },
-  de: { overview: "Übersicht", path: "Pfad", next: "Als Nächstes", openAsks: "Offene Entscheidungen", none: "Nichts offen.", rec: "empfohlen", own: "eigene Lösung", chosen: "Gewählt", waits: "Wartet auf", blocks: "Blockiert", branched: "Neues Thema", allSteps: "alle Schritte", missing: "state.js fehlt neben index.html", broken: "state.js enthält einen Fehler - letzter gültiger Stand wird angezeigt", empty: "Noch keine Einträge. Der Agent schreibt sie nach state.js.", status: { open: "offen", active: "aktiv", blocked: "blockiert", done: "erledigt", dropped: "verworfen" }, themeTitle: "Darstellung", theme: { auto: "Auto", light: "Hell", dark: "Dunkel" }, structure: "Struktur", history: "Verlauf", ready: "bereit", decide: "entscheiden", close: "Thema schließen", closedBy: "geschlossen mit", ask: "Frage stellen", question: "Frage", answer: "Antwort", legend: "<b>fett</b> = aktueller Pfad · <b>bereit</b> = jetzt bearbeitbar · ◆ offene Entscheidung · rot gestrichelt = wartet auf" },
+  en: { overview: "Overview", path: "Path", next: "Up next", openAsks: "Open decisions", none: "Nothing open.", rec: "recommended", own: "your own solution", chosen: "Chosen", waits: "Waits for", blocks: "Blocks", branched: "New topic", allSteps: "all steps", missing: "state.js not found next to index.html", broken: "state.js has an error - showing the last valid state", empty: "No events yet. The agent appends them to state.js.", status: { open: "open", active: "active", blocked: "blocked", done: "done", dropped: "dropped" }, themeTitle: "Appearance", theme: { auto: "Auto", light: "Light", dark: "Dark" }, structure: "Structure", history: "History", ready: "ready", decide: "decide", close: "close this topic", closedBy: "closed with", ask: "ask a question", question: "Question", answer: "Answer", hide: "hide tab", hidden: "Hidden", legend: "<b>bold</b> = current path · <b>ready</b> = can be worked on now · ◆ open decision · red dashed = waits for" },
+  de: { overview: "Übersicht", path: "Pfad", next: "Als Nächstes", openAsks: "Offene Entscheidungen", none: "Nichts offen.", rec: "empfohlen", own: "eigene Lösung", chosen: "Gewählt", waits: "Wartet auf", blocks: "Blockiert", branched: "Neues Thema", allSteps: "alle Schritte", missing: "state.js fehlt neben index.html", broken: "state.js enthält einen Fehler - letzter gültiger Stand wird angezeigt", empty: "Noch keine Einträge. Der Agent schreibt sie nach state.js.", status: { open: "offen", active: "aktiv", blocked: "blockiert", done: "erledigt", dropped: "verworfen" }, themeTitle: "Darstellung", theme: { auto: "Auto", light: "Hell", dark: "Dunkel" }, structure: "Struktur", history: "Verlauf", ready: "bereit", decide: "entscheiden", close: "Thema schließen", closedBy: "geschlossen mit", ask: "Frage stellen", question: "Frage", answer: "Antwort", hide: "Tab ausblenden", hidden: "Ausgeblendet", legend: "<b>fett</b> = aktueller Pfad · <b>bereit</b> = jetzt bearbeitbar · ◆ offene Entscheidung · rot gestrichelt = wartet auf" },
 };
 
 const byId = (id) => document.getElementById(id);
@@ -148,12 +153,18 @@ const short = (s, n = 26) => (String(s).length > n ? String(s).slice(0, n - 1) +
 const store = (k, v) => { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } };
 const recall = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 
+function parseList(text) {
+  try { const list = JSON.parse(text || "[]"); return Array.isArray(list) ? list : []; } catch { return []; }
+}
+
 const THEMES = ["auto", "light", "dark"];
 const systemDark = matchMedia("(prefers-color-scheme: dark)");
 
 let model = fold([]);
 let showAll = recall("wp-all") === "1";
 let view = recall("wp-view") === "history" ? "history" : "structure";
+let hiddenTabs = new Set(parseList(recall("wp-hidden")));
+let showHidden = false;
 let theme = THEMES.includes(recall("wp-theme")) ? recall("wp-theme") : "auto";
 let seen = 0;
 let lastKey = "";
@@ -356,6 +367,7 @@ function render() {
   if (!lastKey) return; // nothing loaded yet: keep the open hint instead of an empty board
   const [view] = location.hash.slice(1).split(":");
   const current = model.topics.has(view) ? view : "overview";
+  if (hiddenTabs.delete(current)) saveHidden();
   document.documentElement.lang = model.lang;
   applyTheme();
   document.title = `${model.title} · Wallpainter`;
@@ -367,14 +379,27 @@ function render() {
   runMermaid();
 }
 
+function saveHidden() {
+  store("wp-hidden", JSON.stringify([...hiddenTabs]));
+}
+
+/* A tab can be hidden unless it holds an open decision; hidden tabs live only in this browser. */
 function renderTabs(current) {
-  const tab = (ref, label, fresh) => `<a href="#${esc(ref)}" class="${ref === current ? "on" : ""}${fresh ? " fresh" : ""}">${label}</a>`;
-  const topics = [...model.topics.values()].map((t) => {
+  const tab = (ref, label, { fresh, ghost } = {}) => `<a href="#${esc(ref)}" class="${ref === current ? "on" : ""}${fresh ? " fresh" : ""}${ghost ? " ghost" : ""}">${label}</a>`;
+  const shown = [];
+  let hiddenCount = 0;
+  for (const t of model.topics.values()) {
     const open = t.log.filter((e) => e.t === "ask" && isOpenAsk(e)).length;
-    const label = `<span class="dot" style="--c:${STATUS_COLOR[effectiveStatus(t)] || "var(--mut)"}"></span>${esc(t.id)} ${esc(short(t.title))}${open ? ` <span class="n">${open}</span>` : ""}`;
-    return tab(t.id, label, topicIsFresh(t));
-  });
-  return tab("overview", esc(tx().overview), false) + topics.join("");
+    const hidden = hiddenTabs.has(t.id) && !open;
+    if (hidden) hiddenCount++;
+    if (hidden && !showHidden) continue;
+    const x = open ? "" : ` <button type="button" class="x" data-hide="${esc(t.id)}" title="${esc(tx().hide)}" aria-label="${esc(tx().hide)}">×</button>`;
+    const label = `<span class="dot" style="--c:${STATUS_COLOR[effectiveStatus(t)] || "var(--mut)"}"></span>${esc(t.id)} ${esc(short(t.title))}${open ? ` <span class="n">${open}</span>` : ""}${x}`;
+    shown.push(tab(t.id, label, { fresh: topicIsFresh(t), ghost: hidden }));
+  }
+  if (!hiddenCount) showHidden = false;
+  const more = hiddenCount ? `<button type="button" class="more${showHidden ? " on" : ""}" data-showhidden>${esc(tx().hidden)} (${hiddenCount})</button>` : "";
+  return tab("overview", esc(tx().overview)) + shown.join("") + more;
 }
 const topicIsFresh = (t) => isFresh(t) || t.log.some((e) => isFresh(e) || (e.answer && isFresh(e.answer)));
 
@@ -651,11 +676,19 @@ function switchView(next) {
   rerender();
 }
 
+function hideTab(id) {
+  hiddenTabs.add(id);
+  saveHidden();
+  if (location.hash.slice(1).split(":")[0] === id) location.hash = "#overview"; else rerender();
+}
+
 document.addEventListener("click", (ev) => {
-  const target = ev.target.closest("[data-go],[data-copy],[data-view]");
+  const target = ev.target.closest("[data-go],[data-copy],[data-view],[data-hide],[data-showhidden]");
   if (!target) return;
   ev.preventDefault();
-  if (target.dataset.go) goTo(target.dataset.go);
+  if (target.dataset.hide) hideTab(target.dataset.hide);
+  else if (target.hasAttribute("data-showhidden")) { showHidden = !showHidden; rerender(); }
+  else if (target.dataset.go) goTo(target.dataset.go);
   else if (target.dataset.view) switchView(target.dataset.view);
   else copyCode(target);
 });
