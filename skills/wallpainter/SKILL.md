@@ -6,9 +6,10 @@ license: PolyForm-Noncommercial-1.0.0
 
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 2.6.1 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 2.7.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
-> Files: this `SKILL.md` (the protocol) and `assets/index.html` (the viewer). Copy the viewer into each project with the command in §3; never read it into context.
+> Files: this `SKILL.md` (the protocol), `scripts/wp.sh` (helper) and `assets/index.html` (the viewer). Copy both into each project with the command in §3; never read them into context.
+> Chat is linear, problems are a graph: the board is a local HTML page with a topic tree, one tab per topic and your ranked next steps. You write data events, never markup.
 
 ## 0. Rules at a glance
 
@@ -17,15 +18,6 @@ Skill version: 2.6.1 · License: PolyForm Noncommercial 1.0.0 · https://github.
 3. Every decision has options with random 4-hex **answer codes**, plus an **own** code for the user's own solution (§6).
 4. Every sub-problem that needs its own decisions or several steps gets its own **topic** (one tab), linked to its parent (§7). Every topic has a **close code** and a **question code**; the user closes the topic or asks about it by typing them (§6).
 5. After each turn, you keep the **focus** (current path) and the ranked **next** list up to date (§8).
-
-## 1. Purpose
-
-Linear chat hides structure: one problem turns into three, decisions get buried, and the user loses track of which path is current. Wallpainter moves that structure into a local HTML board:
-
-- **Overview tab**: a **structure** tree (root problem → sub-topics, open decisions as ◆ leaves, "waits for" arcs, current path in bold, unblocked leaf topics marked *ready*) with a git-style **history** graph as the alternative view. Beside it: your ranked list of what to do or decide next.
-- **One tab per topic**: a top-to-bottom timeline of steps (notes, diagrams, before/after comparisons, diffs, results) and decision cards.
-
-The viewer is static and renders whatever is in `state.js`. You write data, never markup.
 
 ## 2. When to use the board
 
@@ -53,10 +45,12 @@ Run only if `.wallpainter/index.html` is missing, or if its `data-wp-version` is
    ```sh
    mkdir -p .wallpainter
    cp <skill-dir>/assets/index.html .wallpainter/index.html
+   cp <skill-dir>/scripts/wp.sh .wallpainter/wp.sh
    # or, if you loaded this skill from a URL:
    curl -fsSL <raw-url>/skills/wallpainter/assets/index.html -o .wallpainter/index.html
+   curl -fsSL <raw-url>/skills/wallpainter/scripts/wp.sh -o .wallpainter/wp.sh
    ```
-   Without shell access, copy `assets/index.html` unchanged.
+   Without shell access, copy `assets/index.html` unchanged and append events with your edit tool instead of `wp.sh`.
 2. Create `.wallpainter/state.js`:
    ```js
    // Wallpainter event log - append only. Format: wallpainter SKILL.md section 4.
@@ -73,17 +67,16 @@ Run only if `.wallpainter/index.html` is missing, or if its `data-wp-version` is
 
 `state.js` is plain JavaScript: one `W({...})` call per event, in chronological order. Keys may be unquoted. For multi-line text use template literals (`` `...` ``) and escape `` ` `` and `${` inside them.
 
-Append with one shell heredoc per turn (quoted delimiter, so nothing is interpolated):
+Append with one call per turn. `wp.sh append` checks the syntax (with `node` if present) and rejects a code that is already on the board or repeated in the batch; on an error nothing is written:
 
 ```sh
-cat >> .wallpainter/state.js <<'WP'
+.wallpainter/wp.sh append <<'WP'
 W({t:"step", id:"S7", in:"T2", kind:"note", title:"...", md:`...`})
 W({t:"next", items:[{ref:"D3", why:"..."}]})
 WP
-node --check .wallpainter/state.js   # if node exists; a syntax error blanks nothing, but the board stops updating
 ```
 
-Without shell access, append the lines to the end of the file with your edit tool.
+`.wallpainter/wp.sh code` prints a fresh unused 4-hex code. Without shell access, append the lines to the end of the file with your edit tool and keep codes unique yourself.
 
 ### IDs
 
@@ -122,12 +115,11 @@ Step kinds:
 
 ## 5. Token budget (mandatory)
 
-- **Append only.** Never re-read `state.js` whole; use `grep` (§4). Never rewrite `index.html` after setup.
+- **Append only.** Never re-read `state.js` whole; use `grep`. Never rewrite `index.html`.
 - **One idea per step.** `md` at most ~12 lines. Titles at most 6 words. Option labels at most 5 words. Each pro/con at most 8 words.
-- **Pictures over prose.** Prefer a `diagram`, `compare`, `diff` or table to a paragraph.
+- **Pictures over prose.** Prefer `diagram`, `compare` or a table to a paragraph.
 - **No duplication.** Never repeat board content in chat. Don't restate earlier steps; link them (`see S4`).
-- **Batch.** Append all events of a turn in a single write.
-- Leave out speculation, filler and summaries of what you are about to do.
+- **Batch.** One `wp.sh append` per turn.
 
 ## 6. Decisions, answer codes and close codes
 
@@ -138,7 +130,7 @@ W({t:"ask", id:"D2", in:"T2", q:"How do we migrate existing hashes?", md:"option
 ], own:"2d6c"})
 ```
 
-- All codes (option, own and close codes) are **4 random lowercase hex characters**, unique on the board. They are not sequential and not derived from the text. Check that a code is unused: `grep -c '"5b8d"' .wallpainter/state.js` must print `0`.
+- All codes (option, own and close codes) are **4 random lowercase hex characters**, unique on the board. They are not sequential and not derived from the text. Get unused codes with `.wallpainter/wp.sh code`.
 - Every `ask` has 2–4 `opts` and one `own` code. Mark at most one option `rec:1` (your recommendation).
 - Ask only what the user must decide. Don't turn something you can decide yourself into an `ask`; record it as a `note`.
 - **Reading answers.** The user replies in chat with codes, separated by commas or newlines:
@@ -231,30 +223,13 @@ Next: D2 → T3
 ## 10. Every turn: checklist
 
 1. Parse codes in the user's message: append `answer` events for answer codes, `status` events (with cascade) for close codes, and `qa` steps for question codes.
-2. Do the work. Append new steps, topics, decisions, status changes and deps in one batch.
-3. Append `focus` if it changed, and `next` if priorities changed.
-4. Validate (`node --check`) if available.
-5. Reply in chat per §9.
+2. Do the work; add steps, topics, decisions, status changes, deps, `focus` and `next` as needed.
+3. Write all events of the turn with one `.wallpainter/wp.sh append` call (it validates).
+4. Reply in chat per §9.
 
 ## 11. Example (one turn)
 
-User: "Login takes 4 s, fix it."
-
-```js
-W({t:"topic", id:"T1", title:"Login takes 4 s", close:"f3a0", qa:"a8d5", md:"Target < 500 ms."})
-W({t:"step", id:"S1", in:"T1", kind:"diagram", title:"Current flow", mermaid:`flowchart LR
-  B[Browser] --> A[/login] --> H[bcrypt cost 14]
-  A --> D[(users, no index on email)]`})
-W({t:"step", id:"S2", in:"T1", kind:"note", title:"Profile (200 logins)", md:"| part | time |\n|---|---|\n| bcrypt | **2.9 s** |\n| user lookup | 0.9 s |\n| session write | 0.3 s |"})
-W({t:"topic", id:"T2", title:"bcrypt cost", from:"T1", close:"c9e1", qa:"7d3a"})
-W({t:"topic", id:"T3", title:"Index users.email", from:"T1", close:"b7d2", qa:"e46c"})
-W({t:"dep", in:"T3", on:"T2", note:"measure after T2"})
-W({t:"ask", id:"D1", in:"T2", q:"Lower bcrypt cost to?", opts:[{c:"a3f9", h:"12", pro:"~0.7 s, OWASP ok", rec:1},{c:"7c2e", h:"10", con:"below OWASP minimum"}], own:"e01d"})
-W({t:"focus", in:"T2"})
-W({t:"next", items:[{ref:"D1", why:"blocks T2 and T3"},{ref:"T3", why:"cheap win once T2 is merged"}]})
-```
-
-Chat:
+User: "Login takes 4 s, fix it." You append a root topic with a diagram and a profile table, two sub-topics (T2 bcrypt cost, T3 index, `dep` T3 on T2), a decision `D1` with codes, `focus` and `next`, in one `wp.sh append`. Chat:
 
 ```
 WP · T1 analysed (close f3a0, ask a8d5), split into T2 bcrypt cost (c9e1/7d3a) and T3 index (b7d2/e46c) · 3/5 open

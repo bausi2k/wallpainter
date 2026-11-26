@@ -92,7 +92,7 @@ The agent answers on the board as a question/answer card in that topic's timelin
 
 ## Installation
 
-Wallpainter is a folder with two files: `SKILL.md` (the protocol) and `assets/index.html` (the viewer). Pick one of four ways:
+Wallpainter is a folder: `SKILL.md` (the protocol), `scripts/wp.sh` (a helper that validates and appends events) and `assets/index.html` (the viewer). Pick one of four ways:
 
 | | 1. Instruction file | 2. Claude Code skill | 3. Antigravity skill | 4. Claude Code plugin |
 |---|---|---|---|---|
@@ -100,12 +100,12 @@ Wallpainter is a folder with two files: `SKILL.md` (the protocol) and `assets/in
 | Protocol in context | every session | only when a board is needed | only when a board is needed | only when a board is needed |
 | You add | folder + block in `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` | folder + one-line rule in `CLAUDE.md` | folder + one-line rule | one command, no `CLAUDE.md` edit |
 
-All commands pin a release (`v2.6.1`), so changes in this repository never reach your sessions unannounced. To update, run the download again with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
+All commands pin a release (`v2.7.0`), so changes in this repository never reach your sessions unannounced. To update, run the download again with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
 
 ### 1. Instruction file (any agent)
 
 ```bash
-D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.1/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
+D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.7.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
 ```
 
 ```markdown
@@ -113,12 +113,12 @@ D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.1
 Follow the Wallpainter protocol in `~/.wallpainter/SKILL.md`; read it at session start.
 ```
 
-Without a download, point the block at the URLs instead and load them with `curl` (not a web-fetch tool, which may summarise the file): `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.1/skills/wallpainter/SKILL.md` and `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.1/skills/wallpainter/assets/index.html`.
+Without a download, point the block at the URLs instead and load them with `curl` (not a web-fetch tool, which may summarise the file): `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.7.0/skills/wallpainter/SKILL.md` and `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.7.0/skills/wallpainter/assets/index.html`.
 
 ### 2. Claude Code skill
 
 ```bash
-D=~/.claude/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.1/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
+D=~/.claude/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.7.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
 ```
 
 Skills load on demand, but Wallpainter is a way of communicating, so add a one-line rule to `~/.claude/CLAUDE.md`:
@@ -133,7 +133,7 @@ For any reply longer than ~8 lines, with a decision between options, or with sev
 Copy the folder into Antigravity's skills directory: per project `.agents/skills/wallpainter/`, or the global skills folder named in the [Antigravity docs](https://antigravity.google/docs/skills). Then add the same one-line rule as an Antigravity rule (for example `.agents/rules/wallpainter.md`).
 
 ```bash
-D=.agents/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.6.1/skills/wallpainter; mkdir -p $D/assets && curl -fsSL $U/SKILL.md -o $D/SKILL.md && curl -fsSL $U/assets/index.html -o $D/assets/index.html
+D=.agents/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.7.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
 ```
 
 ### 4. Claude Code plugin
@@ -153,7 +153,7 @@ On first use in a project, the agent creates `.wallpainter/`, copies the viewer 
 
 ### Updating a skill folder (ways 2 and 3)
 
-Run the download command again with the newest [tag](https://github.com/bausi2k/wallpainter/tags), then type `/wallpainter` in your session so the agent re-reads `SKILL.md`. The agent also copies a newer viewer into the project (`data-wp-version`).
+Version 2.7.0 added `scripts/wp.sh`: run the download command again (it fetches all files) with the newest [tag](https://github.com/bausi2k/wallpainter/tags), then type `/wallpainter` in your session so the agent re-reads `SKILL.md`. The agent also copies a newer viewer into the project (`data-wp-version`).
 
 ### Upgrading from 1.x
 
@@ -175,13 +175,17 @@ Wallpainter is designed to cost fewer tokens than a wall of text:
 - **Data, not markup.** The agent appends compact events (`W({t:"step", ...})`) to `.wallpainter/state.js`. The viewer is copied once with `cp`, without passing through the model.
 - **Append-only.** The agent never re-reads or rewrites the board; it looks things up with `grep`.
 - **Pictures over prose.** Mermaid diagrams, compare cards and diffs replace paragraphs.
-- **Protocol on demand.** As a skill (ways 2 and 3), only its name and description sit in the context until a board is needed. Through an instruction file (way 1), the protocol (~230 lines) is loaded every session.
+- **One call per turn.** `wp.sh append` checks syntax and duplicate codes and appends, replacing separate `grep` and `node --check` calls.
+- **Protocol on demand.** As a skill (ways 2 to 4), only its name and description sit in the context until a board is needed. Through an instruction file (way 1), the protocol (about 16,500 characters) is loaded every session.
+
+A measured note: splitting the protocol into a core plus reference files did not lower the total tokens (the agents read all parts in a new project), so the protocol stays a single file.
 
 ## How it works
 
 ```
 .wallpainter/
 ├── index.html   # static viewer (copied from skills/wallpainter/assets/index.html)
+├── wp.sh        # helper: fresh codes, validated append (copied from skills/wallpainter/scripts/wp.sh)
 └── state.js     # append-only event log written by the agent
 ```
 
@@ -199,6 +203,7 @@ The event format is documented in `skills/wallpainter/SKILL.md`, section 4.
 |---|---|
 | `README.md` | This document. |
 | `skills/wallpainter/SKILL.md` | The protocol for the agent (Agent Skills format). |
+| `skills/wallpainter/scripts/wp.sh` | Helper: fresh codes, validated append. |
 | `skills/wallpainter/assets/index.html` | The board viewer, copied into each project. |
 | `LICENSE` | PolyForm Noncommercial 1.0.0. |
 
