@@ -33,7 +33,7 @@ Long agent sessions turn into scrollback soup:
 - **Decisions with answer codes**: each option gets a short random code. You answer in chat by typing the code.
 - **Close codes**: every topic has its own code. Typing it closes the problem.
 - **Question codes**: a second code per topic lets you ask questions that are answered on the board.
-- **Short chat**: the agent replies with at most 5 lines and points to the board. Hard limit: no bullet lists, tables or summaries in chat, and the closing message follows the same rule. At most 5 topics are open at once, and the chat shows at most 2 open decisions and one next step.
+- **Short chat**: the agent replies with at most 5 lines and points to the board. Hard limit: no bullet lists, tables or summaries in chat, and the closing message follows the same rule. At most 5 topics are open at once, and the chat shows at most 2 open decisions and one next step. Line 1 stays under about 160 characters, command blocks have at most 3 lines, and the agent writes nothing between tool calls except errors or questions.
 
 ## Answering decisions
 
@@ -101,12 +101,12 @@ Wallpainter is a folder: `SKILL.md` (the protocol), `scripts/wp.sh` (a helper th
 | Protocol in context | every session | only when a board is needed | only when a board is needed | only when a board is needed |
 | You add | folder + block in `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` | folder + one-line rule in `CLAUDE.md` | folder + one-line rule | one command, no `CLAUDE.md` edit |
 
-All commands pin a release (`v2.8.1`), so changes in this repository never reach your sessions unannounced. To update, run the download again with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
+All commands pin a release (`v2.9.0`), so changes in this repository never reach your sessions unannounced. To update, run the download again with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
 
 ### 1. Instruction file (any agent)
 
 ```bash
-D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.8.1/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
+D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.9.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
 ```
 
 ```markdown
@@ -114,12 +114,12 @@ D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.8.1
 Follow the Wallpainter protocol in `~/.wallpainter/SKILL.md`; read it at session start.
 ```
 
-Without a download, point the block at the URLs instead and load them with `curl` (not a web-fetch tool, which may summarise the file): `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.8.1/skills/wallpainter/SKILL.md` and `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.8.1/skills/wallpainter/assets/index.html`.
+Without a download, point the block at the URLs instead and load them with `curl` (not a web-fetch tool, which may summarise the file): `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.9.0/skills/wallpainter/SKILL.md` and `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.9.0/skills/wallpainter/assets/index.html`.
 
 ### 2. Claude Code skill
 
 ```bash
-D=~/.claude/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.8.1/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
+D=~/.claude/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.9.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
 ```
 
 Skills load on demand, but Wallpainter is a way of communicating, so add a one-line rule to `~/.claude/CLAUDE.md`:
@@ -134,7 +134,7 @@ For any reply longer than ~8 lines, with a decision between options, or with sev
 Copy the folder into Antigravity's skills directory: per project `.agents/skills/wallpainter/`, or the global skills folder named in the [Antigravity docs](https://antigravity.google/docs/skills). Then add the same one-line rule as an Antigravity rule (for example `.agents/rules/wallpainter.md`).
 
 ```bash
-D=.agents/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.8.1/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
+D=.agents/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.9.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
 ```
 
 ### 4. Claude Code plugin

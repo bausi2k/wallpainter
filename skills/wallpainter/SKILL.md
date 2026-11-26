@@ -6,7 +6,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 2.8.1 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 2.9.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > Files: this `SKILL.md` (the protocol), `scripts/wp.sh` (helper) and `assets/index.html` (the viewer). Copy both into each project with the command in §3; never read them into context.
 > Chat is linear, problems are a graph: the board is a local HTML page with a topic tree, one tab per topic and your ranked next steps. You write data events, never markup.
@@ -131,9 +131,9 @@ W({t:"ask", id:"D2", in:"T2", q:"How do we migrate existing hashes?", md:"option
 ], own:"2d6c"})
 ```
 
-- All codes (option, own and close codes) are **4 random lowercase hex characters**, unique on the board. They are not sequential and not derived from the text. Get unused codes with `.wallpainter/wp.sh code`. **Never type codes by hand**: `wp.sh append` rejects anything that is not exactly 4 lowercase hex characters. The own code must differ from the option codes of the same decision.
+- All codes (option, own and close codes) are **4 random lowercase hex characters**, unique on the board. Get unused codes with `.wallpainter/wp.sh code`. **Never type codes by hand**: `wp.sh append` rejects anything that is not exactly 4 lowercase hex characters. The own code must differ from the option codes of the same decision.
 - Every `ask` has 2–4 `opts` and one `own` code. Mark at most one option `rec:1` (your recommendation).
-- Ask only what the user must decide. Don't turn something you can decide yourself into an `ask`; record it as a `note`.
+- Ask only what the user must decide; record the rest as a `note`.
 - **Reading answers.** The user replies in chat with codes, separated by commas or newlines:
   - `5b8d`: choose this option.
   - `5b8d - but log every rehash`: choose it with an amendment.
@@ -209,17 +209,18 @@ D2 Migrate hashes?  5b8d Rehash on login (rec) | 9f1a Batch job | 2d6c - own
 Next: D2 → T3
 ```
 
-- Line 1: the topic you worked on, its close code, what changed, and the number of open topics against the limit (`4/5 open`, §7).
-- Lines 2–3: open decisions, each with its codes and short labels, so the user can answer without opening the board. Show at most 2 open decisions; the rest stay on the board (`+3 more on the board`).
-- Last line: one Next entry. The ranked list stays on the board.
-- **No second question:** if your environment adds its own next-step box or question, do not add another question in the text; the decisions and the Next entry above are the only prompts.
-- Allowed on top, only when needed: one extra sentence for a single fact, and one short code block with a command the user must run or an error they must see.
+- Line 1: the topic, its close code, what changed, and the open-topic count (`4/5 open`, §7). At most about 160 characters; numbers, test counts and details go to a board step (`→ S12`).
+- Lines 2–3: at most 2 open decisions with their codes and short labels; the rest stay on the board (`+3 more on the board`).
+- Last line: one Next entry; the ranked list stays on the board.
+- **No second question:** if your environment adds its own next-step box or question, add none in the text. The decisions and the Next entry are the only prompts.
+- On top, only when needed: one sentence for a single fact, and one code block of at most 3 lines with a command the user must run or an error they must see. A longer command (several steps, multi-line message) goes to a board step; chat points to it.
 
 **Hard rules**
 
-- No bullet lists, tables, headings, bold-label paragraphs or "summary of findings" in chat. Findings, numbers and recommendations go to a board step; chat only points to it (`→ S12`).
-- The same applies to the **closing message** of a task and to summaries produced by tools or the app (plan, wrap-up, recap): they follow this section too. Never write a report after the board update.
-- **Self-check before sending:** count the lines. Is any sentence not needed to answer, decide or act? Is any content missing from the board? If so, move it to a step and cut it from the reply.
+- No bullet lists, tables, headings, bold-label paragraphs or summaries of findings in chat. They go to a board step; chat only points to it.
+- This also covers the **closing message** of a task and summaries by tools or the app (plan, wrap-up, recap). Never write a report after the board update.
+- **No messages between tool calls**: write nothing while you work, except errors or questions that block you. The only text the user gets is the reply above.
+- **Self-check before sending:** count the lines and the characters of line 1. Is any sentence not needed to answer, decide or act? Is any content missing from the board? Move it to a step and cut it.
 
 ## 10. Every turn: checklist
 
