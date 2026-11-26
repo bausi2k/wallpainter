@@ -6,7 +6,7 @@ license: PolyForm-Noncommercial-1.0.0
 
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 2.0.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 2.1.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > Files: this `SKILL.md` (the protocol) and `assets/index.html` (the viewer). Copy the viewer into each project with the command in §3; never read it into context.
 
@@ -15,7 +15,7 @@ Skill version: 2.0.0 · License: PolyForm Noncommercial 1.0.0 · https://github.
 1. Never answer with a wall of text. Explanations, analyses, comparisons and decisions go to the **board**; the chat gets at most 5 lines (§9).
 2. The board is one append-only event log, `.wallpainter/state.js`. You only **append** events (§4). You never rewrite or re-read it whole.
 3. Every decision has options with random 4-hex **answer codes**, plus an **own** code for the user's own solution (§6).
-4. Every sub-problem that needs its own decisions or several steps gets its own **topic** (one tab), linked to its parent (§7). Every topic has a **close code**; the user closes the topic by typing it (§6).
+4. Every sub-problem that needs its own decisions or several steps gets its own **topic** (one tab), linked to its parent (§7). Every topic has a **close code** and a **question code**; the user closes the topic or asks about it by typing them (§6).
 5. After each turn, you keep the **focus** (current path) and the ranked **next** list up to date (§8).
 
 ## 1. Purpose
@@ -95,7 +95,7 @@ Without shell access, append the lines to the end of the file with your edit too
 | `t` | Fields | Meaning |
 |---|---|---|
 | `board` | `title`, `lang` (`de`, `en`, ...) | Board title and UI language. First line. |
-| `topic` | `id`, `title`, `close`, `md?`, `from?` | New topic or tab. `close` is its close code (§6). `from` is the parent topic it branched off. |
+| `topic` | `id`, `title`, `close`, `qa`, `md?`, `from?` | New topic or tab. `close` is its close code and `qa` its question code (§6). `from` is the parent topic it branched off. |
 | `step` | `id`, `in`, `kind`, `title`, plus kind fields, `md?` | One unit of explanation inside topic `in`. |
 | `ask` | `id`, `in`, `q`, `md?`, `opts`, `own` | A decision. See §6. |
 | `answer` | `d`, `c`, `note?` | The user's answer to decision `d`: code `c` and their own text in `note`. |
@@ -114,6 +114,7 @@ Step kinds:
 | `compare` | `a:{h, md}`, `b:{h, md}` | Left/right: current vs. target state, option A vs. B. |
 | `code` | `code`, `lang` | Snippets. `lang:"diff"` colours `+` and `-` lines. |
 | `result` | `md` | Outcome or conclusion of a topic (highlighted). |
+| `qa` | `q`, `a` | The user's question about a topic and your answer (§6, Questions). |
 
 `md` supports paragraphs, `- lists`, `1. lists`, `**bold**`, `` `code` ``, fenced code, `#` headings, `[text](url)` and `| pipe | tables |`.
 
@@ -146,6 +147,16 @@ W({t:"ask", id:"D2", in:"T2", q:"How do we migrate existing hashes?", md:"option
   - Free text without a code: map it to the decision if that is unambiguous; otherwise ask back in one line.
   - An unknown code: ask back in one line. Never guess.
 - Record each answer immediately: `W({t:"answer", d:"D2", c:"5b8d", note:"but log every rehash"})`. Then act on it. Never ask the same question again.
+
+### Questions
+
+Every `topic` also carries `qa:"<code>"`, a second code (different from `close`) for questions:
+
+- `7d3a - Why cost 12?`: a question about that topic. Without text after the code, ask back in one line.
+- Answer on the board, not in chat: append `W({t:"step", id:"S20", in:"T2", kind:"qa", title:"Question", q:"Why cost 12?", a:"<answer in md>"})` to that topic, with a diagram or code block in `a` if it helps.
+- Chat gets one line: `WP · answer in T2 → S20`, plus at most one sentence if the answer is a single fact.
+- A question changes neither status, focus nor `next`. Only if the answer reveals a new problem, open a new topic or decision.
+- Questions about a decision are possible too: put them in the decision's topic and name the decision (`D2`) in `q`.
 
 ### Close codes
 
@@ -186,7 +197,7 @@ Every `topic` carries `close:"<code>"`, so the user can end a problem at any tim
 After updating the board, reply in the user's language with **at most 5 lines** and no headings:
 
 ```
-WP · T2 bcrypt cost (new, from T1 · close c9e1) · +3 steps
+WP · T2 bcrypt cost (new, from T1 · close c9e1 · ask 7d3a) · +3 steps
 D2 Migrate hashes?  5b8d Rehash on login (rec) | 9f1a Batch job | 2d6c - own
 Next: D2 → T3
 ```
@@ -198,7 +209,7 @@ Next: D2 → T3
 
 ## 10. Every turn: checklist
 
-1. Parse codes in the user's message: append `answer` events for answer codes, and `status` events (with cascade) for close codes.
+1. Parse codes in the user's message: append `answer` events for answer codes, `status` events (with cascade) for close codes, and `qa` steps for question codes.
 2. Do the work. Append new steps, topics, decisions, status changes and deps in one batch.
 3. Append `focus` if it changed, and `next` if priorities changed.
 4. Validate (`node --check`) if available.
@@ -209,13 +220,13 @@ Next: D2 → T3
 User: "Login takes 4 s, fix it."
 
 ```js
-W({t:"topic", id:"T1", title:"Login takes 4 s", close:"f3a0", md:"Target < 500 ms."})
+W({t:"topic", id:"T1", title:"Login takes 4 s", close:"f3a0", qa:"a8d5", md:"Target < 500 ms."})
 W({t:"step", id:"S1", in:"T1", kind:"diagram", title:"Current flow", mermaid:`flowchart LR
   B[Browser] --> A[/login] --> H[bcrypt cost 14]
   A --> D[(users, no index on email)]`})
 W({t:"step", id:"S2", in:"T1", kind:"note", title:"Profile (200 logins)", md:"| part | time |\n|---|---|\n| bcrypt | **2.9 s** |\n| user lookup | 0.9 s |\n| session write | 0.3 s |"})
-W({t:"topic", id:"T2", title:"bcrypt cost", from:"T1", close:"c9e1"})
-W({t:"topic", id:"T3", title:"Index users.email", from:"T1", close:"b7d2"})
+W({t:"topic", id:"T2", title:"bcrypt cost", from:"T1", close:"c9e1", qa:"7d3a"})
+W({t:"topic", id:"T3", title:"Index users.email", from:"T1", close:"b7d2", qa:"e46c"})
 W({t:"dep", in:"T3", on:"T2", note:"measure after T2"})
 W({t:"ask", id:"D1", in:"T2", q:"Lower bcrypt cost to?", opts:[{c:"a3f9", h:"12", pro:"~0.7 s, OWASP ok", rec:1},{c:"7c2e", h:"10", con:"below OWASP minimum"}], own:"e01d"})
 W({t:"focus", in:"T2"})
@@ -225,7 +236,7 @@ W({t:"next", items:[{ref:"D1", why:"blocks T2 and T3"},{ref:"T3", why:"cheap win
 Chat:
 
 ```
-WP · T1 analysed (close f3a0), split into T2 bcrypt cost (c9e1) and T3 index (b7d2)
+WP · T1 analysed (close f3a0, ask a8d5), split into T2 bcrypt cost (c9e1/7d3a) and T3 index (b7d2/e46c)
 D1 bcrypt cost?  a3f9 12 (rec) | 7c2e 10 | e01d - own
 Next: D1 → T3
 ```
