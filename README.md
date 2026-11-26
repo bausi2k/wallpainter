@@ -87,6 +87,7 @@ The agent answers on the board as a question/answer card in that topic's timelin
 | `wp off` / `wp on` | Pause or resume the protocol. |
 | `wp` | Reprint open decisions and the next list in chat. |
 | `wp open` | Open the board in your browser. |
+| `wp version` | Show the installed and the newest version and the update command (read-only, nothing is changed). |
 | `wp new <title>` | Archive the current board and start a new one. |
 | `focus T3` | Switch the current topic. |
 
@@ -100,12 +101,12 @@ Wallpainter is a folder: `SKILL.md` (the protocol), `scripts/wp.sh` (a helper th
 | Protocol in context | every session | only when a board is needed | only when a board is needed | only when a board is needed |
 | You add | folder + block in `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` | folder + one-line rule in `CLAUDE.md` | folder + one-line rule | one command, no `CLAUDE.md` edit |
 
-All commands pin a release (`v2.7.0`), so changes in this repository never reach your sessions unannounced. To update, run the download again with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
+All commands pin a release (`v2.8.0`), so changes in this repository never reach your sessions unannounced. To update, run the download again with the newest [tag](https://github.com/bausi2k/wallpainter/tags).
 
 ### 1. Instruction file (any agent)
 
 ```bash
-D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.7.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
+D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.8.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
 ```
 
 ```markdown
@@ -113,12 +114,12 @@ D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.7.0
 Follow the Wallpainter protocol in `~/.wallpainter/SKILL.md`; read it at session start.
 ```
 
-Without a download, point the block at the URLs instead and load them with `curl` (not a web-fetch tool, which may summarise the file): `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.7.0/skills/wallpainter/SKILL.md` and `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.7.0/skills/wallpainter/assets/index.html`.
+Without a download, point the block at the URLs instead and load them with `curl` (not a web-fetch tool, which may summarise the file): `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.8.0/skills/wallpainter/SKILL.md` and `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.8.0/skills/wallpainter/assets/index.html`.
 
 ### 2. Claude Code skill
 
 ```bash
-D=~/.claude/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.7.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
+D=~/.claude/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.8.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
 ```
 
 Skills load on demand, but Wallpainter is a way of communicating, so add a one-line rule to `~/.claude/CLAUDE.md`:
@@ -133,7 +134,7 @@ For any reply longer than ~8 lines, with a decision between options, or with sev
 Copy the folder into Antigravity's skills directory: per project `.agents/skills/wallpainter/`, or the global skills folder named in the [Antigravity docs](https://antigravity.google/docs/skills). Then add the same one-line rule as an Antigravity rule (for example `.agents/rules/wallpainter.md`).
 
 ```bash
-D=.agents/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.7.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
+D=.agents/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.8.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
 ```
 
 ### 4. Claude Code plugin
@@ -153,7 +154,7 @@ On first use in a project, the agent creates `.wallpainter/`, copies the viewer 
 
 ### Updating a skill folder (ways 2 and 3)
 
-Version 2.7.0 added `scripts/wp.sh`: run the download command again (it fetches all files) with the newest [tag](https://github.com/bausi2k/wallpainter/tags), then type `/wallpainter` in your session so the agent re-reads `SKILL.md`. The agent also copies a newer viewer into the project (`data-wp-version`).
+Type `wp version` to see whether a newer tag exists; it prints the command and changes nothing. Version 2.7.0 added `scripts/wp.sh`: run the download command again (it fetches all files) with the newest [tag](https://github.com/bausi2k/wallpainter/tags), then type `/wallpainter` in your session so the agent re-reads `SKILL.md`. The agent also copies a newer viewer into the project (`data-wp-version`).
 
 ### Upgrading from 1.x
 
