@@ -93,7 +93,9 @@ Wallpainter is designed to cost fewer tokens than a wall of text:
 └── state.js     # append-only event log written by the agent
 ```
 
-The viewer polls `state.js` every 2 seconds. It works from `file://` without a server or build step, and without dependencies except Mermaid, which loads from a CDN when the board contains a diagram. Offline, diagrams show their source text. It supports light and dark mode and is usable on phones.
+The viewer polls `state.js` every 2 seconds. It works from `file://` without a server or build step, and without dependencies except Mermaid, which loads from a CDN when the board contains a diagram. Offline, diagrams show their source text. It is usable on phones.
+
+**Light and dark mode**: the board follows your system setting. The `◐` button in the header cycles through Auto, Light and Dark; the browser remembers your choice.
 
 The event format is documented in `wallpainter.skill`, section 4.
 

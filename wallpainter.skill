@@ -1,6 +1,6 @@
 # Wallpainter — visual, token-lean conversation protocol for coding agents
 
-Skill version: 1.0.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
+Skill version: 1.1.0 · License: PolyForm Noncommercial 1.0.0 · https://github.com/bausi2k/wallpainter
 
 > **Agent: load sections 0–11 into context. Do NOT read Appendix A** (the viewer, ~490 lines).
 > Copy it into the project with the command in §3. To read only the protocol:
@@ -212,14 +212,15 @@ Copy by command (§3). Do not read or modify.
 ```html
 <!-- wallpainter:viewer:begin -->
 <!doctype html>
-<html lang="en" data-wp-version="1.0.0">
+<html lang="en" data-wp-version="1.1.0">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Wallpainter</title>
 <style>
-:root{--bg:#f5f5f7;--card:#fff;--fg:#1d1d1f;--mut:#6e6e73;--line:#d2d2d7;--acc:#0071e3;--ok:#248a3d;--bad:#d70015;--warn:#b25000;--soft:#eef4fd;--fresh:#fff4c2;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
-@media (prefers-color-scheme:dark){:root{--bg:#000;--card:#1c1c1e;--fg:#f5f5f7;--mut:#98989d;--line:#38383a;--acc:#0a84ff;--ok:#30d158;--bad:#ff453a;--warn:#ff9f0a;--soft:#0b2540;--fresh:#3d3300}}
+:root{color-scheme:light;--bg:#f5f5f7;--card:#fff;--fg:#1d1d1f;--mut:#6e6e73;--line:#d2d2d7;--acc:#0071e3;--ok:#248a3d;--bad:#d70015;--warn:#b25000;--soft:#eef4fd;--fresh:#fff4c2;--mono:ui-monospace,SFMono-Regular,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--bg:#000;--card:#1c1c1e;--fg:#f5f5f7;--mut:#98989d;--line:#38383a;--acc:#0a84ff;--ok:#30d158;--bad:#ff453a;--warn:#ff9f0a;--soft:#0b2540;--fresh:#3d3300}}
+:root[data-theme=dark]{color-scheme:dark;--bg:#000;--card:#1c1c1e;--fg:#f5f5f7;--mut:#98989d;--line:#38383a;--acc:#0a84ff;--ok:#30d158;--bad:#ff453a;--warn:#ff9f0a;--soft:#0b2540;--fresh:#3d3300}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;-webkit-text-size-adjust:100%}
 a{color:var(--acc);text-decoration:none;cursor:pointer}
@@ -227,6 +228,8 @@ header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px so
 .top{display:flex;flex-wrap:wrap;align-items:baseline;gap:.2rem .8rem;padding:.6rem 16px 0}
 .top h1{font-size:1.05rem;margin:0}
 .crumb-path{color:var(--mut);font-size:.85rem}
+.theme{margin-left:auto;align-self:center;font:inherit;font-size:.8rem;color:var(--mut);background:none;border:1px solid var(--line);border-radius:8px;padding:.15rem .6rem;cursor:pointer}
+.theme:hover{color:var(--fg)}
 nav{display:flex;gap:2px;overflow-x:auto;padding:.5rem 16px 0;scrollbar-width:none}
 nav a{flex:none;display:flex;align-items:center;gap:.4rem;padding:.45rem .75rem;border-radius:9px 9px 0 0;color:var(--mut);font-size:.88rem;white-space:nowrap}
 nav a.on{background:var(--card);color:var(--fg);box-shadow:0 0 0 1px var(--line)}
@@ -302,7 +305,7 @@ th{background:var(--soft)}
 </head>
 <body>
 <header>
-  <div class="top"><h1 id="title">Wallpainter</h1><span class="crumb-path" id="path"></span></div>
+  <div class="top"><h1 id="title">Wallpainter</h1><span class="crumb-path" id="path"></span><button class="theme" id="theme" type="button"></button></div>
   <nav id="tabs"></nav>
   <div id="err" hidden></div>
 </header>
@@ -315,8 +318,8 @@ const ROW = 28, LANE_GAP = 18, LANE_PAD = 12;
 const CLOSED = new Set(["done", "dropped"]);
 const STATUS_COLOR = { open: "var(--mut)", active: "var(--acc)", blocked: "var(--bad)", done: "var(--ok)", dropped: "var(--mut)" };
 const TEXT = {
-  en: { overview: "Overview", path: "Path", next: "Up next", openAsks: "Open decisions", none: "Nothing open.", rec: "recommended", own: "your own solution", chosen: "Chosen", waits: "Waits for", blocks: "Blocks", branched: "New topic", allSteps: "all steps", missing: "state.js not found next to index.html", broken: "state.js has an error - showing the last valid state", empty: "No events yet. The agent appends them to state.js.", status: { open: "open", active: "active", blocked: "blocked", done: "done", dropped: "dropped" } },
-  de: { overview: "Übersicht", path: "Pfad", next: "Als Nächstes", openAsks: "Offene Entscheidungen", none: "Nichts offen.", rec: "empfohlen", own: "eigene Lösung", chosen: "Gewählt", waits: "Wartet auf", blocks: "Blockiert", branched: "Neues Thema", allSteps: "alle Schritte", missing: "state.js fehlt neben index.html", broken: "state.js enthält einen Fehler - letzter gültiger Stand wird angezeigt", empty: "Noch keine Einträge. Der Agent schreibt sie nach state.js.", status: { open: "offen", active: "aktiv", blocked: "blockiert", done: "erledigt", dropped: "verworfen" } },
+  en: { overview: "Overview", path: "Path", next: "Up next", openAsks: "Open decisions", none: "Nothing open.", rec: "recommended", own: "your own solution", chosen: "Chosen", waits: "Waits for", blocks: "Blocks", branched: "New topic", allSteps: "all steps", missing: "state.js not found next to index.html", broken: "state.js has an error - showing the last valid state", empty: "No events yet. The agent appends them to state.js.", status: { open: "open", active: "active", blocked: "blocked", done: "done", dropped: "dropped" }, themeTitle: "Appearance", theme: { auto: "Auto", light: "Light", dark: "Dark" } },
+  de: { overview: "Übersicht", path: "Pfad", next: "Als Nächstes", openAsks: "Offene Entscheidungen", none: "Nichts offen.", rec: "empfohlen", own: "eigene Lösung", chosen: "Gewählt", waits: "Wartet auf", blocks: "Blockiert", branched: "Neues Thema", allSteps: "alle Schritte", missing: "state.js fehlt neben index.html", broken: "state.js enthält einen Fehler - letzter gültiger Stand wird angezeigt", empty: "Noch keine Einträge. Der Agent schreibt sie nach state.js.", status: { open: "offen", active: "aktiv", blocked: "blockiert", done: "erledigt", dropped: "verworfen" }, themeTitle: "Darstellung", theme: { auto: "Auto", light: "Hell", dark: "Dunkel" } },
 };
 
 const byId = (id) => document.getElementById(id);
@@ -326,8 +329,12 @@ const short = (s, n = 26) => (String(s).length > n ? String(s).slice(0, n - 1) +
 const store = (k, v) => { try { localStorage.setItem(k, v); } catch { /* storage unavailable */ } };
 const recall = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
 
+const THEMES = ["auto", "light", "dark"];
+const systemDark = matchMedia("(prefers-color-scheme: dark)");
+
 let model = fold([]);
 let showAll = recall("wp-all") === "1";
+let theme = THEMES.includes(recall("wp-theme")) ? recall("wp-theme") : "auto";
 let seen = 0;
 let lastKey = "";
 let buffer = [];
@@ -365,9 +372,24 @@ function finishLoad(script, missing) {
   seen = lastKey ? model.count : buffer.length;
   lastKey = key;
   model = fold(buffer);
-  const y = window.scrollY;
-  render();
-  window.scrollTo(0, y);
+  rerender();
+}
+
+/* ---------- theme ---------- */
+const isDark = () => theme === "dark" || (theme === "auto" && systemDark.matches);
+
+function applyTheme() {
+  if (theme === "auto") delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = theme;
+  const button = byId("theme");
+  button.textContent = `◐ ${tx().theme[theme]}`;
+  button.title = tx().themeTitle;
+}
+
+function cycleTheme() {
+  theme = THEMES[(THEMES.indexOf(theme) + 1) % THEMES.length];
+  store("wp-theme", theme);
+  rerender();
 }
 
 /* ---------- event folding ---------- */
@@ -476,10 +498,17 @@ const link = (id) => `<a data-go="${esc(id)}">${esc(id)}</a>`;
 const statusChip = (s) => `<span class="s" style="--c:${STATUS_COLOR[s] || "var(--mut)"}">${esc(tx().status[s] || s)}</span>`;
 
 /* ---------- views ---------- */
+function rerender() {
+  const y = window.scrollY;
+  render();
+  window.scrollTo(0, y);
+}
+
 function render() {
   const [view] = location.hash.slice(1).split(":");
   const current = model.topics.has(view) ? view : "overview";
   document.documentElement.lang = model.lang;
+  applyTheme();
   document.title = `${model.title} · Wallpainter`;
   byId("title").textContent = model.title;
   const focus = model.topics.get(model.focus);
@@ -644,15 +673,15 @@ function renderAsk(a) {
 function runMermaid() {
   const nodes = [...document.querySelectorAll(".mermaid:not([data-processed])")];
   if (!nodes.length || mermaidState === "loading" || mermaidState === "failed") return;
-  if (mermaidState === "ready") { window.mermaid.run({ nodes }).catch(() => {}); return; }
+  if (mermaidState === "ready") {
+    window.mermaid.initialize({ startOnLoad: false, theme: isDark() ? "dark" : "default" });
+    window.mermaid.run({ nodes }).catch(() => {});
+    return;
+  }
   mermaidState = "loading";
   const script = document.createElement("script");
   script.src = MERMAID_SRC;
-  script.onload = () => {
-    mermaidState = "ready";
-    window.mermaid.initialize({ startOnLoad: false, theme: matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "default" });
-    runMermaid();
-  };
+  script.onload = () => { mermaidState = "ready"; runMermaid(); };
   script.onerror = () => { mermaidState = "failed"; };
   document.head.appendChild(script);
 }
@@ -687,10 +716,13 @@ document.addEventListener("change", (ev) => {
   if (ev.target.id !== "all") return;
   showAll = ev.target.checked;
   store("wp-all", showAll ? "1" : "");
-  render();
+  rerender();
 });
+byId("theme").addEventListener("click", cycleTheme);
+systemDark.addEventListener("change", () => { if (theme === "auto") rerender(); });
 window.addEventListener("hashchange", () => { render(); scrollToAnchor(); });
 document.addEventListener("visibilitychange", poll);
+applyTheme();
 poll();
 setInterval(poll, POLL_MS);
 </script>
