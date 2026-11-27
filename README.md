@@ -1,5 +1,7 @@
 # Wallpainter
 
+**English** · [Deutsch](#deutsch)
+
 **Stop the wall of text.** Wallpainter is an [Agent Skill](https://agentskills.io) (`skills/wallpainter/`) that you hand to a coding agent (Claude Code, Codex, Gemini CLI, Antigravity, Cursor, ...). It tells the agent to explain its work on a visual, local HTML board instead of in long chat messages.
 
 [![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
@@ -213,5 +215,227 @@ The event format is documented in `skills/wallpainter/SKILL.md`, section 4.
 ## License
 
 [PolyForm Noncommercial 1.0.0](LICENSE): free for personal, research, educational and other noncommercial use. Commercial use is not permitted.
+
+[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
+
+---
+
+# Deutsch
+
+[English](#wallpainter) · **Deutsch**
+
+**Schluss mit der Textwand.** Wallpainter ist ein [Agent Skill](https://agentskills.io) (`skills/wallpainter/`), den Du einem Coding-Agenten gibst (Claude Code, Codex, Gemini CLI, Antigravity, Cursor, ...). Er weist den Agenten an, seine Arbeit auf einem visuellen, lokalen HTML-Board zu erklären statt in langen Chat-Nachrichten.
+
+[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
+
+## Das Problem
+
+Lange Agent-Sitzungen enden in einer Textwüste:
+
+- **Aus einem Problem werden drei.** Teilprobleme, Abhängigkeiten und Seitenwege verschwinden in linearem Text.
+- **Entscheidungen gehen verloren.** Optionen verteilen sich über Absätze, und es ist unklar, was entschieden ist und was offen bleibt.
+- **Kein Überblick.** Wo stehen wir auf dem Weg? Was soll als Nächstes passieren?
+
+## Was Wallpainter macht
+
+```
+┌ Übersicht ┬ T1 Login langsam ┬ T2 bcrypt ●1 ┬ T3 Index ┐
+│                                                        │
+│ [Struktur | Verlauf]             │  Als Nächstes       │
+│ ┌┄ ● T1 Login dauert 4 s         │  1 D2 Hashes migr.? │
+│ ┆  ├─ ● T2 bcrypt-Kosten bereit  │    blockiert Deploy │
+│ ┆  │   └─ ◆ D2 Migration? entsch.│  2 T3 Index         │
+│ └┄►├─ ● T3 Index  wartet auf T2  │    wartet auf T2    │
+│    └─ ○ T4 Sessions   verworfen  │                     │
+└────────────────────────────────────────────────────────┘
+```
+
+- **Ein Board pro Projekt** unter `.wallpainter/index.html`. Es lädt sich selbst neu, während der Agent arbeitet.
+- **Übersicht, Strukturansicht**: Problem → Teilprobleme als Baum, offene Entscheidungen als ◆-Blätter, rote „wartet auf“-Bögen, der aktuelle Pfad fett. Themen, an denen sofort gearbeitet werden kann, sind als *bereit* markiert (Mikado-Prinzip: Blätter zuerst). Daneben steht die Rangliste, was als Nächstes zu tun oder zu entscheiden ist.
+- **Übersicht, Verlaufsansicht**: ein Git-artiger Graph, der zeigt, wann Themen abgezweigt und wieder zusammengeführt wurden.
+- **Ein Tab pro Thema**: Jedes Teilproblem hat einen eigenen Tab mit einer Zeitleiste von oben nach unten: Notizen, Mermaid-Diagramme, Vorher-nachher-Vergleiche nebeneinander, Diffs und Ergebnisse.
+- **Entscheidungen mit Antwortcodes**: Jede Option bekommt einen kurzen Zufallscode. Du antwortest im Chat mit dem Code.
+- **Schließ-Codes**: Jedes Thema hat einen eigenen Code. Tippst Du ihn, ist das Problem geschlossen.
+- **Fragecodes**: Ein zweiter Code pro Thema erlaubt Fragen, die auf dem Board beantwortet werden.
+- **Kurzer Chat**: Der Agent antwortet mit höchstens 5 Zeilen und verweist auf das Board. Harte Grenze: keine Aufzählungen, Tabellen oder Zusammenfassungen im Chat, und auch die Abschlussmeldung folgt dieser Regel. Höchstens 5 Themen sind gleichzeitig offen, und der Chat zeigt höchstens 2 offene Entscheidungen und einen nächsten Schritt. Zeile 1 bleibt unter etwa 160 Zeichen, Befehlsblöcke haben höchstens 3 Zeilen, und der Agent schreibt zwischen Werkzeugaufrufen nichts außer Fehlern oder Fragen.
+
+## Entscheidungen beantworten
+
+Jede Entscheidungskarte zeigt Codes. Ein Klick auf einen Code kopiert ihn.
+
+| Du tippst | Bedeutung |
+|---|---|
+| `5b8d` | Option 5b8d wählen. |
+| `5b8d - but log every rehash` | Wählen, mit Deiner Ergänzung. |
+| `2d6c - use argon2 instead` | Deine eigene Lösung (jede Entscheidung hat einen „eigenen“ Code). |
+| `5b8d, a3f9` | Mehrere Entscheidungen auf einmal beantworten. |
+
+## Ein Thema schließen
+
+Jedes Thema (Problem) hat einen eigenen Schließ-Code. Er steht im Themenkopf und im Strukturbaum, und die erste Chat-Zeile des Agenten nennt ihn ebenfalls.
+
+| Du tippst | Bedeutung |
+|---|---|
+| `c9e1` | Thema gelöst: als *erledigt* geschlossen. |
+| `c9e1 - deploy ok` | Geschlossen, mit Deiner Notiz. |
+| `c9e1 - not worth it` | Als *verworfen* geschlossen. |
+
+Das Schließen eines Themas schließt auch seine offenen oder blockierten Unterthemen; Unterthemen, an denen gerade gearbeitet wird (*aktiv*), bleiben offen, und der Agent nennt sie. Seine offenen Entscheidungen verschwinden, und Themen, die auf es gewartet haben, werden *bereit*.
+
+## Ein Thema starten
+
+Die Übersicht hat einen Tag **＋ Neues Thema**. Anklicken, Titel tippen, senden:
+
+| Du tippst | Bedeutung |
+|---|---|
+| `neu - Cache layer` | Ein neues Thema (`new - ` auf englischen Boards). |
+| `neu T2 - Cache layer` | Ein neues Thema, abgezweigt von `T2`. |
+
+## Zu einem Thema fragen
+
+Jedes Thema hat außerdem einen **Fragecode**, der im Themenkopf neben dem Schließ-Code steht (Klick kopiert ihn, der Bindestrich ist dabei).
+
+| Du tippst | Bedeutung |
+|---|---|
+| `7d3a - Why cost 12?` | Eine Frage zu diesem Thema. |
+| `7d3a S4 - Why this value?` | Eine Frage zu einer Karte (`S4`). |
+
+Jede Karte zeigt ihre ID als kleinen Chip. Ein Klick kopiert das vorbereitete Präfix (`7d3a S4 - `), Du tippst nur die Frage.
+
+Der Agent antwortet auf dem Board als Frage-Antwort-Karte in der Zeitleiste des Themas und meldet sich im Chat mit einer Zeile. Eine Frage ändert weder Status noch Fokus.
+
+## Befehle
+
+| Befehl | Wirkung |
+|---|---|
+| `wp off` / `wp on` | Protokoll pausieren oder fortsetzen. |
+| `wp` | Offene Entscheidungen und die Nächstes-Liste im Chat erneut ausgeben. |
+| `wp open` | Das Board im Browser öffnen. |
+| `wp version` | Installierte und neueste Version samt Update-Befehl anzeigen (nur lesend, nichts wird geändert). |
+| `wp new <title>` | Das aktuelle Board archivieren und ein neues beginnen. |
+| `focus T3` | Das aktuelle Thema wechseln. |
+
+## Installation
+
+Wallpainter ist ein Ordner: `SKILL.md` (das Protokoll), `scripts/wp.sh` (ein Helfer, der Ereignisse prüft und anhängt) und `assets/index.html` (der Viewer). Es gibt vier Wege:
+
+| | 1. Instruktionsdatei | 2. Claude-Code-Skill | 3. Antigravity-Skill | 4. Claude-Code-Plugin |
+|---|---|---|---|---|
+| Funktioniert mit | jedem Agenten | Claude Code | Google Antigravity | Claude Code |
+| Protokoll im Kontext | jede Sitzung | nur wenn ein Board gebraucht wird | nur wenn ein Board gebraucht wird | nur wenn ein Board gebraucht wird |
+| Du ergänzt | Ordner + Block in `CLAUDE.md` / `AGENTS.md` / `GEMINI.md` | Ordner + Ein-Zeilen-Regel in `CLAUDE.md` | Ordner + Ein-Zeilen-Regel | ein Befehl, keine `CLAUDE.md`-Änderung |
+
+Alle Befehle sind auf einen Release festgelegt (`v2.10.0`), damit Änderungen in diesem Repository Deine Sitzungen nie unangekündigt erreichen. Zum Aktualisieren führst Du den Download erneut mit dem neuesten [Tag](https://github.com/bausi2k/wallpainter/tags) aus.
+
+### 1. Instruktionsdatei (jeder Agent)
+
+```bash
+D=~/.wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.10.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
+```
+
+```markdown
+## Communication (Wallpainter)
+Follow the Wallpainter protocol in `~/.wallpainter/SKILL.md`; read it at session start.
+```
+
+Ohne Download kannst Du den Block stattdessen auf die URLs zeigen lassen und sie mit `curl` laden (nicht mit einem Web-Fetch-Werkzeug, das die Datei zusammenfassen könnte): `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.10.0/skills/wallpainter/SKILL.md` und `https://raw.githubusercontent.com/bausi2k/wallpainter/v2.10.0/skills/wallpainter/assets/index.html`.
+
+### 2. Claude-Code-Skill
+
+```bash
+D=~/.claude/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.10.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
+```
+
+Skills werden bei Bedarf geladen, Wallpainter ist aber eine Art zu kommunizieren. Ergänze deshalb eine Ein-Zeilen-Regel in `~/.claude/CLAUDE.md`:
+
+```markdown
+## Communication (Wallpainter)
+For any reply longer than ~8 lines, with a decision between options, or with several sub-problems: use the `wallpainter` skill (board instead of chat).
+```
+
+### 3. Google-Antigravity-Skill (noch nicht getestet)
+
+Kopiere den Ordner in das Skills-Verzeichnis von Antigravity: pro Projekt `.agents/skills/wallpainter/` oder den globalen Skills-Ordner aus der [Antigravity-Dokumentation](https://antigravity.google/docs/skills). Ergänze dann dieselbe Ein-Zeilen-Regel als Antigravity-Regel (zum Beispiel `.agents/rules/wallpainter.md`).
+
+```bash
+D=.agents/skills/wallpainter; U=https://raw.githubusercontent.com/bausi2k/wallpainter/v2.10.0/skills/wallpainter; for f in SKILL.md scripts/wp.sh assets/index.html; do mkdir -p $D/$(dirname $f) && curl -fsSL $U/$f -o $D/$f; done
+```
+
+### 4. Claude-Code-Plugin
+
+```text
+/plugin marketplace add bausi2k/wallpainter
+/plugin install wallpainter@wallpainter
+```
+
+Ab Claude Code 2.1.275 erledigt ein Befehl beides: `/plugin install wallpainter --marketplace bausi2k/wallpainter`.
+
+Das Plugin liefert den Skill und einen `SessionStart`-Hook, der die kurze Regel in jede Sitzung schreibt, daher ist keine `CLAUDE.md`-Änderung nötig. Entferne die Ein-Zeilen-Regel aus Weg 2, falls Du sie vorher benutzt hast. Aktualisiere mit `/plugin update wallpainter`; die nächste Sitzung lädt die neue Version.
+
+### Was danach passiert
+
+In einem eingebetteten Browser-Fenster behält das Board seinen eigenen Tab: Der Agent öffnet jede andere Seite in einem neuen Tab und navigiert den Board-Tab nie weg.
+
+Bei der ersten Nutzung in einem Projekt legt der Agent `.wallpainter/` an, kopiert den Viewer dorthin, trägt `.wallpainter/` in die `.gitignore` ein und öffnet das Board in Deinem System-Browser.
+
+### Einen Skill-Ordner aktualisieren (Wege 2 und 3)
+
+Tippe `wp version`, um zu sehen, ob es einen neueren Tag gibt; es gibt den Befehl aus und ändert nichts. Version 2.7.0 hat `scripts/wp.sh` ergänzt: Führe den Download-Befehl erneut aus (er lädt alle Dateien) mit dem neuesten [Tag](https://github.com/bausi2k/wallpainter/tags), und tippe dann `/wallpainter` in Deiner Sitzung, damit der Agent `SKILL.md` neu liest. Der Agent kopiert außerdem einen neueren Viewer in das Projekt (`data-wp-version`).
+
+### Upgrade von 1.x
+
+Version 2.0.0 hat die einzelne Datei `wallpainter.skill` durch den Skill-Ordner ersetzt. Lade den Ordner mit einem der Befehle oben herunter und ersetze in Deiner Instruktionsdatei `wallpainter.skill` durch `SKILL.md` (Weg 1) oder durch die Ein-Zeilen-Regel (Weg 2). Bestehende Boards funktionieren weiter. Installationen, die auf `v1.3.x` festgelegt sind, funktionieren ebenfalls weiter.
+
+## Verfügbarkeit
+
+Wallpainter ist öffentlich, aber nichts installiert es für Dich: Jeder Nutzer muss es selbst mit einem der vier Wege oben installieren. Für Claude Code sind das zwei Befehle (Weg 4).
+
+- **Wo:** Dieses Repository ist das Plugin und zugleich sein eigener Marketplace. Es ist in keinem offiziellen Plugin-Verzeichnis gelistet.
+- **Lizenz:** [PolyForm Noncommercial 1.0.0](LICENSE). Private, Forschungs- und Bildungsnutzung ist in Ordnung; kommerzielle Nutzung ist nicht erlaubt.
+- **Nicht geprüft:** eine echte Plugin-Installation von GitHub in einer sauberen Umgebung (die Manifeste bestehen `claude plugin validate .`) und der Skill in Cursor, Codex, Gemini CLI und Antigravity.
+- **Updates:** Nichts aktualisiert sich still. Plugin-Nutzer führen `/plugin update wallpainter` aus; Nutzer von Skill-Ordner und Instruktionsdatei laden den neuesten [Tag](https://github.com/bausi2k/wallpainter/tags) herunter.
+
+## Token-Effizienz
+
+Wallpainter ist darauf ausgelegt, weniger Tokens zu kosten als eine Textwand:
+
+- **Daten, kein Markup.** Der Agent hängt kompakte Ereignisse (`W({t:"step", ...})`) an `.wallpainter/state.js` an. Der Viewer wird einmal mit `cp` kopiert, ohne durch das Modell zu laufen.
+- **Nur anhängen.** Der Agent liest oder überschreibt das Board nie komplett; er schlägt Dinge mit `grep` nach.
+- **Bilder statt Prosa.** Mermaid-Diagramme, Vergleichskarten und Diffs ersetzen Absätze.
+- **Ein Aufruf pro Runde.** `wp.sh append` prüft Syntax und doppelte Codes und hängt an, statt getrennter `grep`- und `node --check`-Aufrufe.
+- **Protokoll bei Bedarf.** Als Skill (Wege 2 bis 4) stehen nur Name und Beschreibung im Kontext, bis ein Board gebraucht wird. Über eine Instruktionsdatei (Weg 1) wird das Protokoll (etwa 16.500 Zeichen) in jeder Sitzung geladen.
+
+Eine gemessene Anmerkung: Das Protokoll in einen Kern plus Referenzdateien aufzuteilen hat die Gesamt-Tokens nicht gesenkt (die Agenten lesen in einem neuen Projekt alle Teile), deshalb bleibt das Protokoll eine einzelne Datei.
+
+## So funktioniert es
+
+```
+.wallpainter/
+├── index.html   # statischer Viewer (kopiert aus skills/wallpainter/assets/index.html)
+├── wp.sh        # Helfer: frische Codes, geprüftes Anhängen (kopiert aus skills/wallpainter/scripts/wp.sh)
+└── state.js     # vom Agenten geschriebenes, nur anhängbares Ereignisprotokoll
+```
+
+Der Viewer fragt `state.js` alle 2 Sekunden ab. Er läuft von `file://` ohne Server oder Build-Schritt und ohne Abhängigkeiten, außer Mermaid, das aus einem CDN geladen wird, wenn das Board ein Diagramm enthält. Offline zeigen Diagramme ihren Quelltext. Er ist auf Smartphones nutzbar.
+
+**Tabs ausblenden**: Jeder Themen-Tab (außer der Übersicht und Tabs mit einer offenen Entscheidung) hat ein ×, das ihn aus der Tab-Leiste ausblendet, ohne das Thema zu beenden. „Ausgeblendet (n)“ zeigt ausgeblendete Tabs wieder an, und ein Thema aus dem Baum oder über einen Link zu öffnen blendet es wieder ein. Das wird nur pro Browser gespeichert; der Agent und andere Browser sehen weiterhin alle Tabs.
+
+**Heller und dunkler Modus**: Das Board folgt Deiner Systemeinstellung. Die Schaltfläche `◐` in der Kopfzeile wechselt zwischen Auto, Hell und Dunkel; der Browser merkt sich Deine Wahl.
+
+Das Ereignisformat ist in `skills/wallpainter/SKILL.md`, Abschnitt 4, dokumentiert.
+
+## Repository
+
+| Datei | Zweck |
+|---|---|
+| `README.md` | Dieses Dokument. |
+| `skills/wallpainter/SKILL.md` | Das Protokoll für den Agenten (Agent-Skills-Format). |
+| `skills/wallpainter/scripts/wp.sh` | Helfer: frische Codes, geprüftes Anhängen. |
+| `skills/wallpainter/assets/index.html` | Der Board-Viewer, in jedes Projekt kopiert. |
+| `LICENSE` | PolyForm Noncommercial 1.0.0. |
+
+## Lizenz
+
+[PolyForm Noncommercial 1.0.0](LICENSE): frei für private, Forschungs-, Bildungs- und andere nichtkommerzielle Nutzung. Kommerzielle Nutzung ist nicht erlaubt.
 
 [![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/bausi2k)
